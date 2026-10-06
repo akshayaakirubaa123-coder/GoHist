@@ -4,7 +4,7 @@ A mobile app for history-loving travellers. It uses your location to show nearby
 
 ## Status
 
-Planning stage. See [docs/plan.md](docs/plan.md) for the sources, tech stack and first-version scope.
+Early development. The mobile app in [`mobile/`](mobile/) finds Wikipedia-documented places near you in English and Spanish. See [docs/plan.md](docs/plan.md) for the sources, tech stack and first-version scope, and [mobile/README.md](mobile/README.md) to run the app.
 
 ## Planned stack
 
