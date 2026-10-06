@@ -1,4 +1,4 @@
-# History App
+# GoHist
 
 A mobile app for history-loving travellers. It uses your location to show nearby historical sites and events, and every fact links to a trustworthy, verified source (official heritage registers, Wikipedia, Wikidata).
 
