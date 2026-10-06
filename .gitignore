@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Expo / React Native build output
+.expo/
+dist/
+web-build/
+ios/
+android/
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+*.log
+.vscode/
+.idea/
