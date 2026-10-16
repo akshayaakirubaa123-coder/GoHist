@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { Place } from '@/lib/places';
+import { mergeVisits } from '@/lib/visit-sync';
 import { addVisits, sortVisits, type Visit } from '@/lib/visits';
 
 const STORAGE_KEY = 'gohist.visits';
@@ -12,6 +13,10 @@ type VisitsContextValue = {
   hasVisited: (id: string) => boolean;
   markVisited: (places: Place[]) => void;
   removeVisit: (id: string) => void;
+  /** Adds visits saved to your account (from another phone, say). */
+  mergeIn: (visits: Visit[]) => void;
+  /** False until the log on this phone has been read. */
+  loaded: boolean;
 };
 
 const VisitsContext = createContext<VisitsContextValue>({
@@ -19,9 +24,11 @@ const VisitsContext = createContext<VisitsContextValue>({
   hasVisited: () => false,
   markVisited: () => {},
   removeVisit: () => {},
+  mergeIn: () => {},
+  loaded: false,
 });
 
-/** The visit log ("history passport"). It's kept only on this phone. */
+/** The visit log ("history passport"). It's kept on this phone, and copied to your account when you're signed in. */
 export function VisitsProvider({ children }: { children: ReactNode }) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -56,6 +63,14 @@ export function VisitsProvider({ children }: { children: ReactNode }) {
         if (loaded) save((current) => sortVisits(addVisits(current, places, new Date())));
       },
       removeVisit: (id) => save((current) => current.filter((visit) => visit.id !== id)),
+      mergeIn: (remote) => {
+        if (!loaded) return;
+        save((current) => {
+          const merged = mergeVisits(current, remote);
+          return merged === current ? current : sortVisits(merged);
+        });
+      },
+      loaded,
     };
   }, [visits, loaded, save]);
 

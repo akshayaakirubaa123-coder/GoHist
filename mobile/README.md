@@ -19,13 +19,28 @@ The iOS and Android app, built with [Expo](https://expo.dev) (React Native).
 Each place card also has:
 
 - **Then and now**: old photos of that spot (from 1960 or earlier) next to a recent one, from Wikimedia Commons, each with its author, licence and a link.
-- **I've been here**: adds the place to your **Passport** (top right), a log of the historic places you've visited. Places within 100 m of you are added automatically when the app loads. The log stays on your phone.
+- **I've been here**: adds the place to your **Passport**, a log of the historic places you've visited. Places within 100 m of you are added automatically when the app loads.
+
+Tap **Profile** (top right) to see your name, how many places and countries you've visited, and a world map that fills in as you travel. Zoomed out it is a plain outline of the world with every country you've visited coloured in. Zoom into a city and the streets fade in, with the ground around each place you've been to coloured, so a city fills up the more of it you explore. Your full passport is linked from there.
 
 Tap **Offline** (top right) to download a city before a trip. GoHist saves the places, summaries and photos within about 7 km of the city centre, and shows them in the list when you have no signal. The map and old photos still need internet.
 
 To try it in a web browser instead, run `npx expo start --web`.
 
 The map is a small web page (`src/lib/map-html.ts`) drawn with [Leaflet](https://leafletjs.com). Phones show it in a WebView and the web version shows it in an iframe, so the map looks and works the same everywhere. Map pictures come from free services that need no API key: OpenStreetMap (street map) and Esri (satellite).
+
+## Accounts (optional)
+
+Without any setup the app works with no account and keeps your passport on the phone. To let people sign up, sign in and keep their passport across phones, connect a free [Supabase](https://supabase.com) project:
+
+1. Sign up at supabase.com and create a project (the free plan is enough).
+2. In the dashboard open **SQL Editor**, paste the contents of `supabase/schema.sql` and press **Run**. This creates the `profiles` and `visits` tables, and locks them so each person can only read and change their own rows.
+3. Open **Project Settings > API**, copy `.env.example` to `.env` in this folder, and fill in the **Project URL** and the **anon public** key.
+4. Restart `npx expo start`.
+
+By default Supabase asks new users to confirm their email address before they can sign in. You can turn that off for testing under **Authentication > Sign In / Providers > Email**.
+
+When someone signs in, visits already on the phone are added to their account and visits saved from other phones are added to the phone. Signing out keeps the passport on the phone.
 
 ## On-device translation needs a development build
 
