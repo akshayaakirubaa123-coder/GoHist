@@ -31,7 +31,7 @@ export default function SourcesScreen() {
 
         <ThemedText type="smallBold">Maps</ThemedText>
         <ThemedText type="small">
-          The street map is drawn from OpenStreetMap data, styled by CARTO. Satellite pictures come
+          The street map comes from OpenStreetMap, a map made by volunteers. Satellite pictures come
           from Esri. The map itself is drawn with Leaflet, an open-source map library.
         </ThemedText>
         <ExternalLink href="https://www.openstreetmap.org/copyright">

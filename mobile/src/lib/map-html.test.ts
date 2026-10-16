@@ -9,7 +9,7 @@ test('the map page loads a pinned, integrity-checked copy of Leaflet', () => {
   assert.match(html, /leaflet@1\.9\.4\/dist\/leaflet\.css" integrity="sha256-/);
 });
 
-test('dark mode switches the street map to its dark style', () => {
+test('dark mode tells the map page to darken the street map', () => {
   assert.match(buildMapHtml({ dark: true }), /"dark":true/);
   assert.match(buildMapHtml({ dark: false }), /"dark":false/);
 });

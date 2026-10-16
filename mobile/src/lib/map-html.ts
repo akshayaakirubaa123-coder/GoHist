@@ -20,10 +20,8 @@ const LEAFLET_JS_HASH = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
 // Free map tiles that need no API key. Both ask for the credit line shown in
 // the map's corner.
 const TILES = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  streetsCredit:
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  streets: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  streetsCredit: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   satelliteLabels:
     'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
@@ -57,6 +55,8 @@ export function buildMapHtml({ dark }: { dark: boolean }): string {
 const MAP_CSS = `
 html, body, #map { height: 100%; margin: 0; }
 body.dark { background: #1b1b1b; }
+/* OpenStreetMap has no dark style, so in dark mode we invert the street map's colours. */
+body.dark .streets { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
 .pin {
   width: 26px; height: 26px; border-radius: 50% 50% 50% 0;
   background: #b3261e; border: 2px solid #fff; transform: rotate(-45deg);
@@ -83,8 +83,8 @@ const MAP_SCRIPT = `
 (function () {
   var map = L.map('map', { zoomControl: false, attributionControl: true }).setView([0, 0], 2);
 
-  var streets = L.tileLayer(CONFIG.dark ? CONFIG.tiles.dark : CONFIG.tiles.light, {
-    attribution: CONFIG.tiles.streetsCredit, subdomains: 'abcd', maxZoom: 20
+  var streets = L.tileLayer(CONFIG.tiles.streets, {
+    attribution: CONFIG.tiles.streetsCredit, maxZoom: 19, className: 'streets'
   }).addTo(map);
   var satellite = L.layerGroup([
     L.tileLayer(CONFIG.tiles.satellite, { attribution: CONFIG.tiles.satelliteCredit, maxZoom: 19 }),

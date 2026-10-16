@@ -18,7 +18,7 @@ The iOS and Android app, built with [Expo](https://expo.dev) (React Native).
 
 To try it in a web browser instead, run `npx expo start --web`.
 
-The map is a small web page (`src/lib/map-html.ts`) drawn with [Leaflet](https://leafletjs.com). Phones show it in a WebView and the web version shows it in an iframe, so the map looks and works the same everywhere. Map pictures come from free services that need no API key: CARTO (street map, from OpenStreetMap data) and Esri (satellite).
+The map is a small web page (`src/lib/map-html.ts`) drawn with [Leaflet](https://leafletjs.com). Phones show it in a WebView and the web version shows it in an iframe, so the map looks and works the same everywhere. Map pictures come from free services that need no API key: OpenStreetMap (street map) and Esri (satellite).
 
 ## Checks
 
