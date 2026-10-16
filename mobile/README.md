@@ -28,4 +28,4 @@ npm run lint       # code style
 
 - `src/app/` – screens (each file is a screen, thanks to Expo Router)
 - `src/components/` – reusable UI pieces such as the place card
-- `src/lib/` – logic with no UI: distance maths, Wikipedia lookups, merging English and Spanish results
+- `src/lib/` – logic with no UI: distance maths, Wikipedia lookups, merging results from several languages, choosing the display language
