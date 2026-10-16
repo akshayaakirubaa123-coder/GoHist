@@ -30,6 +30,13 @@ export default function SourcesScreen() {
           article in it. Wikidata is released into the public domain (CC0).
         </ThemedText>
 
+        <ThemedText type="smallBold">Wikimedia Commons</ThemedText>
+        <ThemedText type="small">
+          The old and recent photos on &quot;Then and now&quot; come from Wikimedia Commons, which
+          records where many photos were taken. Each photo shows its author and licence and links to
+          its page on Commons. A photo&apos;s year is the date its uploader recorded.
+        </ThemedText>
+
         <ThemedText type="smallBold">Translations</ThemedText>
         <ThemedText type="small">
           When a place has no article in your language, your phone translates the original summary
