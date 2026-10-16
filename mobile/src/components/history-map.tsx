@@ -3,15 +3,18 @@ import { StyleSheet } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import type { Coordinates } from '@/lib/geo';
 import { buildMapHtml, type MapEvent, type MapState } from '@/lib/map-html';
 
 export type HistoryMapProps = {
   state: MapState;
-  onSelect: (id: string | undefined) => void;
+  onSelect: (id: string) => void;
+  /** A tap on the map away from any pin. */
+  onTap: (point: Coordinates) => void;
 };
 
 /** The map on phones: the shared map page, shown in a WebView (a small built-in browser). */
-export function HistoryMap({ state, onSelect }: HistoryMapProps) {
+export function HistoryMap({ state, onSelect, onTap }: HistoryMapProps) {
   const dark = useColorScheme() === 'dark';
   const html = useMemo(() => buildMapHtml({ dark }), [dark]);
   const webView = useRef<WebView>(null);
@@ -33,8 +36,8 @@ export function HistoryMap({ state, onSelect }: HistoryMapProps) {
       push(state);
     } else if (message.type === 'select') {
       onSelect(message.id);
-    } else {
-      onSelect(undefined);
+    } else if (message.type === 'tap') {
+      onTap({ latitude: message.latitude, longitude: message.longitude });
     }
   };
 

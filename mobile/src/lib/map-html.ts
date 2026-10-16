@@ -2,14 +2,21 @@ import type { Coordinates } from './geo.ts';
 
 /** What the app tells the map to show. */
 export type MapState = {
-  here: Coordinates;
+  /** The centre of the search: your location, or a spot you picked. Missing until there is one. */
+  here?: Coordinates;
+  /** True when you're choosing a spot by tapping the map rather than using your location. */
+  picking: boolean;
   radiusMetres: number;
   places: { id: string; title: string; latitude: number; longitude: number }[];
   selectedId?: string;
 };
 
 /** Messages the map sends back to the app. */
-export type MapEvent = { type: 'ready' } | { type: 'select'; id: string } | { type: 'deselect' };
+export type MapEvent =
+  | { type: 'ready' }
+  | { type: 'select'; id: string }
+  /** A tap on the map itself, away from any pin. */
+  | { type: 'tap'; latitude: number; longitude: number };
 
 // Leaflet is a small open-source map library. We load a fixed version from a
 // CDN; the "integrity" hashes make the browser refuse a file that was changed.
@@ -72,8 +79,20 @@ body.dark .streets { filter: invert(1) hue-rotate(180deg) brightness(0.9) contra
   border: 3px solid #fff; box-sizing: border-box;
   box-shadow: 0 0 0 6px rgba(26,115,232,0.25), 0 1px 3px rgba(0,0,0,0.4);
 }
+.spot {
+  width: 22px; height: 22px; border-radius: 50%; background: #e8710a;
+  border: 3px solid #fff; box-sizing: border-box;
+  box-shadow: 0 0 0 6px rgba(232,113,10,0.25), 0 1px 3px rgba(0,0,0,0.4);
+}
+.picking.leaflet-container { cursor: crosshair; }
 .leaflet-tooltip.label { display: none; font-weight: 600; }
-.show-labels .leaflet-tooltip.label { display: block; }
+.show-labels .spot {
+  width: 22px; height: 22px; border-radius: 50%; background: #e8710a;
+  border: 3px solid #fff; box-sizing: border-box;
+  box-shadow: 0 0 0 6px rgba(232,113,10,0.25), 0 1px 3px rgba(0,0,0,0.4);
+}
+.picking.leaflet-container { cursor: crosshair; }
+.leaflet-tooltip.label { display: block; }
 .recenter a { font-size: 18px; }
 `;
 
@@ -104,7 +123,7 @@ const MAP_SCRIPT = `
       var box = L.DomUtil.create('div', 'leaflet-bar recenter');
       var button = L.DomUtil.create('a', '', box);
       button.href = '#';
-      button.title = 'Back to my location';
+      button.title = 'Back to the search area';
       button.setAttribute('role', 'button');
       button.innerHTML = '&#9678;';
       L.DomEvent.on(button, 'click', function (e) {
@@ -124,7 +143,9 @@ const MAP_SCRIPT = `
   }
   map.on('zoomend', updateLabels);
 
-  map.on('click', function () { send({ type: 'deselect' }); });
+  map.on('click', function (e) {
+    send({ type: 'tap', latitude: e.latlng.lat, longitude: e.latlng.lng });
+  });
 
   function send(message) {
     if (window.ReactNativeWebView) {
@@ -142,29 +163,43 @@ const MAP_SCRIPT = `
     });
   }
 
+  // A blue dot for your location, an orange one for a spot you picked.
+  function centreIcon(picking) {
+    return picking
+      ? L.divIcon({ className: '', html: '<div class="spot"></div>', iconSize: [22, 22] })
+      : L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16] });
+  }
+
   function update(next) {
     var previous = state;
     state = next;
-    var here = [next.here.latitude, next.here.longitude];
+    map.getContainer().classList.toggle('picking', !!next.picking);
 
-    if (!meMarker) {
-      meMarker = L.marker(here, {
-        icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16] }),
-        interactive: false, keyboard: false, zIndexOffset: 1000
-      }).addTo(map);
-      radiusCircle = L.circle(here, {
-        radius: next.radiusMetres, color: '#1a73e8', weight: 1, fillOpacity: 0.04, interactive: false
-      }).addTo(map);
+    if (!next.here) {
+      if (meMarker) { map.removeLayer(meMarker); map.removeLayer(radiusCircle); meMarker = null; radiusCircle = null; }
+      lastView = null;
     } else {
-      meMarker.setLatLng(here);
-      radiusCircle.setLatLng(here).setRadius(next.radiusMetres);
-    }
+      var here = [next.here.latitude, next.here.longitude];
+      var color = next.picking ? '#e8710a' : '#1a73e8';
+      if (!meMarker) {
+        meMarker = L.marker(here, {
+          icon: centreIcon(next.picking), interactive: false, keyboard: false, zIndexOffset: 1000
+        }).addTo(map);
+        radiusCircle = L.circle(here, {
+          radius: next.radiusMetres, color: color, weight: 1, fillOpacity: 0.04, interactive: false
+        }).addTo(map);
+      } else {
+        meMarker.setLatLng(here);
+        if (!previous || !!previous.picking !== !!next.picking) meMarker.setIcon(centreIcon(next.picking));
+        radiusCircle.setLatLng(here).setRadius(next.radiusMetres).setStyle({ color: color });
+      }
 
-    // Only move the map when the search area changes, not on every tap.
-    var view = here.join(',') + '|' + next.radiusMetres;
-    if (view !== lastView) {
-      lastView = view;
-      map.fitBounds(radiusCircle.getBounds());
+      // Only move the map when the search area changes, not on every tap.
+      var view = here.join(',') + '|' + next.radiusMetres;
+      if (view !== lastView) {
+        lastView = view;
+        map.fitBounds(radiusCircle.getBounds());
+      }
     }
 
     var keep = {};
