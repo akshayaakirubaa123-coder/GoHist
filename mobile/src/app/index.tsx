@@ -134,8 +134,8 @@ export default function NearbyScreen() {
         options={{
           headerRight: () => (
             <View style={styles.headerLinks}>
-              <Link href="/passport" accessibilityLabel="My history passport">
-                <ThemedText type="linkPrimary">Passport</ThemedText>
+              <Link href="/profile" accessibilityLabel="My profile and history passport">
+                <ThemedText type="linkPrimary">Profile</ThemedText>
               </Link>
               <Link href="/offline" accessibilityLabel="Download a city">
                 <ThemedText type="linkPrimary">Offline</ThemedText>

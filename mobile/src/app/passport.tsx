@@ -28,7 +28,7 @@ export default function PassportScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {visits.length === 1 ? 'historic place visited' : 'historic places visited'}. A place is
               added when you open GoHist within 100 m of it, or tap &quot;I&apos;ve been here&quot; on
-              its card. Your log stays on this phone.
+              its card. Your log stays on this phone, and is saved to your account when you&apos;re signed in.
             </ThemedText>
           </View>
         }
