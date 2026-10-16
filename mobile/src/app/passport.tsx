@@ -1,21 +1,26 @@
 import { Image } from 'expo-image';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
 import { ExternalLink } from '@/components/external-link';
+import { listItemEntering, PressableScale, SPRING } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useVisits } from '@/hooks/use-visits';
 
 /** Your history passport: every historic place you've been to, newest first. */
 export default function PassportScreen() {
   const { visits, removeVisit } = useVisits();
+  const theme = useTheme();
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList
+      <Animated.FlatList
         data={visits}
         keyExtractor={(visit) => visit.id}
+        itemLayoutAnimation={LinearTransition.springify().damping(SPRING.damping)}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.header}>
@@ -27,10 +32,13 @@ export default function PassportScreen() {
             </ThemedText>
           </View>
         }
-        renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" style={styles.row}>
+        renderItem={({ item, index }) => (
+          <Animated.View
+            entering={listItemEntering(index)}
+            exiting={FadeOutLeft.duration(200)}
+            style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             {item.thumbnailUrl ? (
-              <Image source={item.thumbnailUrl} style={styles.thumbnail} contentFit="cover" />
+              <Image source={item.thumbnailUrl} style={styles.thumbnail} contentFit="cover" transition={200} />
             ) : null}
             <View style={styles.rowText}>
               <ThemedText type="smallBold">{item.title}</ThemedText>
@@ -47,14 +55,14 @@ export default function PassportScreen() {
                     <ThemedText type="linkPrimary">Source</ThemedText>
                   </ExternalLink>
                 ) : null}
-                <Pressable onPress={() => removeVisit(item.id)} accessibilityRole="button">
+                <PressableScale onPress={() => removeVisit(item.id)} accessibilityRole="button">
                   <ThemedText type="link" themeColor="textSecondary">
                     Remove
                   </ThemedText>
-                </Pressable>
+                </PressableScale>
               </View>
             </View>
-          </ThemedView>
+          </Animated.View>
         )}
       />
     </ThemedView>

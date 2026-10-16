@@ -12,11 +12,15 @@ export default function RootLayout() {
       <VisitsProvider>
         <SavedAreasProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
+            {/* Screens slide in from the side and can be swiped back from anywhere on the screen. */}
+            <Stack screenOptions={{ animation: 'ios_from_right', fullScreenGestureEnabled: true }}>
               <Stack.Screen name="index" options={{ title: 'Nearby history' }} />
               <Stack.Screen name="place" options={{ title: '' }} />
               <Stack.Screen name="sources" options={{ title: 'Sources' }} />
-              <Stack.Screen name="language" options={{ title: 'Language' }} />
+              <Stack.Screen
+                name="language"
+                options={{ title: 'Language', presentation: 'modal', animation: 'slide_from_bottom' }}
+              />
               <Stack.Screen name="then-and-now" options={{ title: 'Then and now' }} />
               <Stack.Screen name="passport" options={{ title: 'My history passport' }} />
               <Stack.Screen name="offline" options={{ title: 'Download a city' }} />

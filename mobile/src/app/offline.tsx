@@ -1,7 +1,9 @@
 import * as Location from 'expo-location';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
+import { listItemEntering, PressableScale, SPRING } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -71,9 +73,10 @@ export default function OfflineScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList
+      <Animated.FlatList
         data={areas}
         keyExtractor={(area) => area.id}
+        itemLayoutAnimation={LinearTransition.springify().damping(SPRING.damping)}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
@@ -98,18 +101,21 @@ export default function OfflineScreen() {
             </View>
             <Button label="Download where I am" onPress={downloadHere} disabled={busy} />
             {status.kind !== 'idle' ? (
-              <View style={styles.status}>
+              <Animated.View entering={FadeIn} style={styles.status}>
                 {busy ? <ActivityIndicator /> : null}
                 <ThemedText type="small" themeColor={status.kind === 'error' ? 'textSecondary' : 'text'}>
                   {status.text}
                 </ThemedText>
-              </View>
+              </Animated.View>
             ) : null}
             {areas.length > 0 ? <ThemedText type="smallBold">On this phone</ThemedText> : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <ThemedView type="backgroundElement" style={styles.row}>
+        renderItem={({ item, index }) => (
+          <Animated.View
+            entering={listItemEntering(index)}
+            exiting={FadeOutLeft.duration(200)}
+            style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <View style={styles.rowText}>
               <ThemedText type="smallBold">{item.name}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
@@ -122,7 +128,7 @@ export default function OfflineScreen() {
                 Delete
               </ThemedText>
             </Pressable>
-          </ThemedView>
+          </Animated.View>
         )}
       />
     </ThemedView>
@@ -131,11 +137,11 @@ export default function OfflineScreen() {
 
 function Button({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }}>
+    <PressableScale onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }}>
       <ThemedView type="backgroundSelected" style={[styles.button, disabled && styles.disabled]}>
         <ThemedText type="smallBold">{label}</ThemedText>
       </ThemedView>
-    </Pressable>
+    </PressableScale>
   );
 }
 
