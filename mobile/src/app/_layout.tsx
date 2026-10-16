@@ -33,6 +33,7 @@ export default function RootLayout() {
               />
               <Stack.Screen name="then-and-now" options={{ title: 'Then and now' }} />
               <Stack.Screen name="passport" options={{ title: 'My history passport' }} />
+              <Stack.Screen name="add-visit" options={{ title: 'Add a place', presentation: 'modal' }} />
               <Stack.Screen name="offline" options={{ title: 'Download a city' }} />
               <Stack.Screen name="profile" options={{ title: 'My profile' }} />
               <Stack.Screen name="sign-in" options={{ title: 'Your account', presentation: 'modal' }} />

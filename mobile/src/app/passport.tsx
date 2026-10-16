@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
@@ -28,8 +29,16 @@ export default function PassportScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {visits.length === 1 ? 'historic place visited' : 'historic places visited'}. A place is
               added when you open GoHist within 100 m of it, or tap &quot;I&apos;ve been here&quot; on
-              its card. Your log stays on this phone, and is saved to your account when you&apos;re signed in.
+              its card, or when you add one you&apos;ve been to before. Your log stays on this phone, and is saved to your account when you&apos;re signed in.
             </ThemedText>
+            <PressableScale
+              accessibilityRole="button"
+              onPress={() => router.push('/add-visit')}
+              style={[styles.addButton, { backgroundColor: theme.text }]}>
+              <ThemedText type="smallBold" style={{ color: theme.background }}>
+                Add a place you&apos;ve been
+              </ThemedText>
+            </PressableScale>
           </View>
         }
         renderItem={({ item, index }) => (
@@ -78,7 +87,14 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   header: {
+    gap: Spacing.two,
     marginBottom: Spacing.two,
+  },
+  addButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    borderRadius: Spacing.three,
   },
   row: {
     flexDirection: 'row',
