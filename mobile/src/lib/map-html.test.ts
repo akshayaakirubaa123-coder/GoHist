@@ -13,3 +13,7 @@ test('dark mode tells the map page to darken the street map', () => {
   assert.match(buildMapHtml({ dark: true }), /"dark":true/);
   assert.match(buildMapHtml({ dark: false }), /"dark":false/);
 });
+
+test('tapping the map tells the app where, so it can move a picked spot', () => {
+  assert.match(buildMapHtml({ dark: false }), /type: 'tap', latitude: e\.latlng\.lat, longitude: e\.latlng\.lng/);
+});

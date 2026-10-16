@@ -22,15 +22,25 @@ import { translateOnDevice } from '@/lib/translate';
 import { placesYouAreAt } from '@/lib/visits';
 import { fetchNearbyPlaces } from '@/lib/wikipedia';
 
-const RADIUS_OPTIONS = [500, 2000, 10000];
+const RADIUS_OPTIONS = [500, 2000, 10000, 25000];
 
 type ScreenState =
   | { kind: 'loading' }
   | { kind: 'permission-denied' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; places: Place[]; offline?: boolean };
+  | { kind: 'choose-spot' }
+  // `atMyLocation` is false for a picked spot, so those places never count as visited.
+  | {
+      kind: 'ready';
+      places: Place[];
+      atMyLocation: boolean;
+      offline?: boolean;
+    };
 
 type ViewMode = 'map' | 'list';
+
+/** Where to look: around your location, or around a spot you picked on the map. */
+type SearchCentre = 'me' | 'spot';
 
 export default function NearbyScreen() {
   const { language } = useLanguage();
@@ -40,6 +50,8 @@ export default function NearbyScreen() {
   const [here, setHere] = useState<Coordinates>();
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [selectedId, setSelectedId] = useState<string>();
+  const [searchCentre, setSearchCentre] = useState<SearchCentre>('me');
+  const [spot, setSpot] = useState<Coordinates>();
   // Counts loads, so a slow translation from an earlier load can't overwrite a newer list.
   const loadCount = useRef(0);
   const { markVisited } = useVisits();
@@ -50,28 +62,41 @@ export default function NearbyScreen() {
 
   const load = useCallback(async () => {
     const thisLoad = ++loadCount.current;
+    const atMyLocation = searchCentre === 'me';
     try {
-      // Ask for "while using the app" location access. The app never tracks
-      // location in the background.
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        setState({ kind: 'permission-denied' });
-        return;
+      let coordinates: Coordinates;
+      if (!atMyLocation) {
+        setHere(spot);
+        if (!spot) {
+          setState({ kind: 'choose-spot' });
+          return;
+        }
+        coordinates = spot;
+      } else {
+        // Ask for "while using the app" location access. The app never tracks
+        // location in the background.
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          setState({ kind: 'permission-denied' });
+          return;
+        }
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        coordinates = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        // A newer load (say, after picking a spot) may have started while we waited for the phone.
+        if (thisLoad !== loadCount.current) return;
+        setHere(coordinates);
       }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const coordinates: Coordinates = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-      setHere(coordinates);
       let places: Place[];
       try {
         places = await fetchNearbyPlaces(coordinates, radius, language, {
           translate: translateOnDevice,
           onTranslated: (translated) => {
-            if (thisLoad === loadCount.current) setState({ kind: 'ready', places: translated });
+            if (thisLoad === loadCount.current) setState({ kind: 'ready', places: translated, atMyLocation });
           },
         });
       } catch (error) {
@@ -79,17 +104,26 @@ export default function NearbyScreen() {
         const saved = savedPlacesNear(savedAreas.current, coordinates, radius);
         if (saved.length === 0) throw error;
         if (thisLoad === loadCount.current) {
-          setState({ kind: 'ready', places: saved, offline: true });
+          setState({
+            kind: 'ready',
+            places: saved,
+            atMyLocation,
+            offline: true,
+          });
           // The map needs internet; the list doesn't.
           setViewMode('list');
         }
         return;
       }
-      if (thisLoad === loadCount.current) setState({ kind: 'ready', places });
+      if (thisLoad === loadCount.current) setState({ kind: 'ready', places, atMyLocation });
     } catch (error) {
-      setState({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
+      if (thisLoad === loadCount.current)
+        setState({
+          kind: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
     }
-  }, [radius, language]);
+  }, [radius, language, searchCentre, spot]);
 
   useEffect(() => {
     setState({ kind: 'loading' });
@@ -104,29 +138,58 @@ export default function NearbyScreen() {
 
   const places = useMemo(() => (state.kind === 'ready' ? state.places : []), [state]);
 
-  // Log places you're standing at in your history passport.
+  // Log places you're standing at in your history passport. A picked spot doesn't count: you're not there.
+  const atMyLocation = state.kind === 'ready' && state.atMyLocation;
   useEffect(() => {
+    if (!atMyLocation) return;
     const here = placesYouAreAt(places);
     if (here.length > 0) markVisited(here);
-  }, [places, markVisited]);
+  }, [places, atMyLocation, markVisited]);
   const selectedPlace = places.find((place) => place.id === selectedId);
 
   // What the map draws. Kept stable between renders so the map only updates when something changed.
+  const picking = searchCentre === 'spot';
   const mapState = useMemo<MapState | undefined>(
     () =>
-      here && {
-        here,
-        radiusMetres: radius,
-        places: places.map((place) => ({
-          id: place.id,
-          title: place.title,
-          latitude: place.coordinates.latitude,
-          longitude: place.coordinates.longitude,
-        })),
-        selectedId: selectedPlace?.id,
-      },
-    [here, radius, places, selectedPlace],
+      here || picking
+        ? {
+            here,
+            picking,
+            radiusMetres: radius,
+            places: places.map((place) => ({
+              id: place.id,
+              title: place.title,
+              latitude: place.coordinates.latitude,
+              longitude: place.coordinates.longitude,
+            })),
+            selectedId: selectedPlace?.id,
+          }
+        : undefined,
+    [here, picking, radius, places, selectedPlace],
   );
+
+  const chooseSearchCentre = (next: SearchCentre) => {
+    if (next === searchCentre) return;
+    setSelectedId(undefined);
+    if (next === 'spot') {
+      // Start the spot where you are, then let you move it. Picking happens on the map.
+      setSpot((current) => current ?? here);
+      setViewMode('map');
+    }
+    setSearchCentre(next);
+  };
+
+  // A tap on the map closes an open card first; otherwise, when picking, it moves the spot there.
+  const onMapTap = (point: Coordinates) => {
+    if (selectedId) setSelectedId(undefined);
+    else if (picking) setSpot(point);
+  };
+
+  const mapHint = !picking
+    ? undefined
+    : spot
+      ? 'Tap the map to move your spot'
+      : 'Tap anywhere on the map to explore there';
 
   return (
     <ThemedView style={styles.container}>
@@ -148,21 +211,31 @@ export default function NearbyScreen() {
         }}
       />
       <View style={styles.toolbar}>
-        {RADIUS_OPTIONS.map((option) => (
-          <Chip
-            key={option}
-            label={formatDistance(option)}
-            selected={option === radius}
-            onPress={() => setRadius(option)}
-          />
-        ))}
-        <View style={styles.spacer} />
-        <Chip label="Map" selected={viewMode === 'map'} onPress={() => setViewMode('map')} />
-        <Chip label="List" selected={viewMode === 'list'} onPress={() => setViewMode('list')} />
+        <View style={styles.toolbarRow}>
+          <Chip label="Near me" selected={!picking} onPress={() => chooseSearchCentre('me')} />
+          <Chip label="Pick a spot" selected={picking} onPress={() => chooseSearchCentre('spot')} />
+          <View style={styles.spacer} />
+          <Chip label="Map" selected={viewMode === 'map'} onPress={() => setViewMode('map')} />
+          <Chip label="List" selected={viewMode === 'list'} onPress={() => setViewMode('list')} />
+        </View>
+        <View style={styles.toolbarRow}>
+          {RADIUS_OPTIONS.map((option) => (
+            <Chip
+              key={option}
+              label={formatDistance(option)}
+              selected={option === radius}
+              onPress={() => setRadius(option)}
+            />
+          ))}
+        </View>
       </View>
 
       {state.kind === 'permission-denied' && (
-        <Message text="GoHist needs your location to find history near you. You can allow it in your phone's settings." />
+        <Message text="GoHist needs your location to find history near you. You can allow it in your phone's settings, or tap Pick a spot to explore anywhere on the map." />
+      )}
+
+      {state.kind === 'choose-spot' && viewMode === 'list' && (
+        <Message text="Switch to the map and tap a spot to explore around it." />
       )}
 
       {state.kind === 'ready' && state.offline && (
@@ -173,7 +246,7 @@ export default function NearbyScreen() {
 
       {viewMode === 'map' && mapState && (
         <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(150)} style={styles.mapArea}>
-          <HistoryMap state={mapState} onSelect={setSelectedId} />
+          <HistoryMap state={mapState} onSelect={setSelectedId} onTap={onMapTap} />
           {state.kind === 'loading' && (
             <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.mapBadgeSlot}>
               <ThemedView type="backgroundElement" style={styles.mapBadge}>
@@ -182,6 +255,16 @@ export default function NearbyScreen() {
               </ThemedView>
             </Animated.View>
           )}
+          {mapHint &&
+            !selectedPlace &&
+            state.kind !== 'loading' &&
+            !(state.kind === 'ready' && places.length === 0) && (
+              <Animated.View key={mapHint} entering={FadeIn} exiting={FadeOut} style={styles.mapBadgeSlot}>
+                <ThemedView type="backgroundElement" style={styles.mapBadge}>
+                  <ThemedText type="small">{mapHint}</ThemedText>
+                </ThemedView>
+              </Animated.View>
+            )}
           {state.kind === 'ready' && places.length === 0 && (
             <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.mapBadgeSlot}>
               <ThemedView type="backgroundElement" style={styles.mapBadge}>
@@ -211,9 +294,7 @@ export default function NearbyScreen() {
         </Animated.View>
       )}
 
-      {state.kind === 'loading' && (viewMode === 'list' || !mapState) && (
-        <ActivityIndicator style={styles.centered} />
-      )}
+      {state.kind === 'loading' && (viewMode === 'list' || !mapState) && <ActivityIndicator style={styles.centered} />}
 
       {viewMode === 'list' && state.kind === 'ready' && (
         <Animated.FlatList
@@ -268,9 +349,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toolbar: {
-    flexDirection: 'row',
     gap: Spacing.two,
     padding: Spacing.three,
+  },
+  toolbarRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   headerLinks: {
     flexDirection: 'row',

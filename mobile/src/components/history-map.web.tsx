@@ -6,7 +6,7 @@ import { buildMapHtml, type MapEvent, type MapState } from '@/lib/map-html';
 import type { HistoryMapProps } from './history-map';
 
 /** The map on the web: the shared map page, shown in an iframe (a page inside the page). */
-export function HistoryMap({ state, onSelect }: HistoryMapProps) {
+export function HistoryMap({ state, onSelect, onTap }: HistoryMapProps) {
   const dark = useColorScheme() === 'dark';
   const html = useMemo(() => buildMapHtml({ dark }), [dark]);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -15,6 +15,8 @@ export function HistoryMap({ state, onSelect }: HistoryMapProps) {
   latest.current = state;
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onTapRef = useRef(onTap);
+  onTapRef.current = onTap;
 
   const push = () => {
     frame.current?.contentWindow?.postMessage({ source: 'gohist-app', state: latest.current }, '*');
@@ -30,8 +32,11 @@ export function HistoryMap({ state, onSelect }: HistoryMapProps) {
         push();
       } else if (message.type === 'select') {
         onSelectRef.current(message.id);
-      } else {
-        onSelectRef.current(undefined);
+      } else if (message.type === 'tap') {
+        onTapRef.current({
+          latitude: message.latitude,
+          longitude: message.longitude,
+        });
       }
     };
     window.addEventListener('message', listener);
