@@ -30,12 +30,28 @@ export default function SourcesScreen() {
           article in it. Wikidata is released into the public domain (CC0).
         </ThemedText>
 
+        <ThemedText type="smallBold">Wikimedia Commons</ThemedText>
+        <ThemedText type="small">
+          The old and recent photos on &quot;Then and now&quot; come from Wikimedia Commons, which
+          records where many photos were taken. Each photo shows its author and licence and links to
+          its page on Commons. A photo&apos;s year is the date its uploader recorded.
+        </ThemedText>
+
         <ThemedText type="smallBold">Translations</ThemedText>
         <ThemedText type="small">
           When a place has no article in your language, your phone translates the original summary
           with Google ML Kit, without sending it to a server. Translated cards are labelled, and
           their source link always opens the original article.
         </ThemedText>
+
+        <ThemedText type="smallBold">Maps</ThemedText>
+        <ThemedText type="small">
+          The street map comes from OpenStreetMap, a map made by volunteers. Satellite pictures come
+          from Esri. The map itself is drawn with Leaflet, an open-source map library.
+        </ThemedText>
+        <ExternalLink href="https://www.openstreetmap.org/copyright">
+          <ThemedText type="linkPrimary">OpenStreetMap licence</ThemedText>
+        </ExternalLink>
       </ScrollView>
     </ThemedView>
   );
