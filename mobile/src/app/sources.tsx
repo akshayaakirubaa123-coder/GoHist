@@ -28,6 +28,15 @@ export default function SourcesScreen() {
           Used to recognise when English and Spanish articles describe the same place. Wikidata is
           released into the public domain (CC0).
         </ThemedText>
+
+        <ThemedText type="smallBold">Maps</ThemedText>
+        <ThemedText type="small">
+          The street map is drawn from OpenStreetMap data, styled by CARTO. Satellite pictures come
+          from Esri. The map itself is drawn with Leaflet, an open-source map library.
+        </ThemedText>
+        <ExternalLink href="https://www.openstreetmap.org/copyright">
+          <ThemedText type="linkPrimary">OpenStreetMap licence</ThemedText>
+        </ExternalLink>
       </ScrollView>
     </ThemedView>
   );
