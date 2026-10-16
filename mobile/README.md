@@ -16,6 +16,16 @@ The iOS and Android app, built with [Expo](https://expo.dev) (React Native).
 4. Scan the QR code that appears with your phone's camera (iPhone) or the Expo Go app (Android).
 5. Allow location access when asked. You'll see Wikipedia-documented places near you, nearest first.
 
+## On-device translation needs a development build
+
+When a place has no article in your chosen language, the app translates it on the phone with Google ML Kit. Expo Go doesn't include that code, so in Expo Go those places stay in their original language (everything else works). To get translation, build your own copy of the app, called a development build, with EAS:
+
+```bash
+npx eas-cli@latest build --profile development --platform android   # or ios
+```
+
+Install the build it gives you, then run `npx expo start` as above and open the project in that app instead of Expo Go.
+
 ## Checks
 
 ```bash

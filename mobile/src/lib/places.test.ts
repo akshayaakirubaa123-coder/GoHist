@@ -122,3 +122,34 @@ test('places already fully in the chosen language are left alone', () => {
   assert.equal(place.title, 'Plaza Mayor');
   assert.equal(place.summary, 'A square.');
 });
+
+test('a machine translation of the summary is preferred over the short Wikidata description', () => {
+  const merged = mergeArticles(
+    [article({ language: 'es', title: 'Fuente', wikidataId: 'Q8', summary: 'Una fuente del siglo XVIII.' })],
+    madrid,
+  );
+  const [place] = localizePlaces(
+    merged,
+    'en',
+    new Map([['Q8', { label: 'Fountain', description: 'fountain in Madrid' }]]),
+    new Map([['Q8', { title: 'The Fountain', summary: 'An 18th-century fountain.' }]]),
+  );
+  assert.equal(place.title, 'Fountain', 'the human-written Wikidata name wins over a machine translation');
+  assert.equal(place.summary, 'An 18th-century fountain.');
+  assert.equal(place.translatedFrom, 'es');
+  assert.equal(otherShownLanguage(place, 'en'), undefined);
+});
+
+test('the title is machine-translated when Wikidata has no name in the chosen language', () => {
+  const merged = mergeArticles([article({ language: 'es', pageId: 3, title: 'Fuente' })], madrid);
+  const [place] = localizePlaces(merged, 'en', new Map(), new Map([['es:3', { title: 'Fountain' }]]));
+  assert.equal(place.title, 'Fountain');
+  assert.equal(place.translatedFrom, 'es');
+});
+
+test('places in the chosen language are never marked as translated', () => {
+  const merged = mergeArticles([article({ title: 'Plaza Mayor', wikidataId: 'Q7', summary: 'A square.' })], madrid);
+  const [place] = localizePlaces(merged, 'en', new Map(), new Map([['Q7', { summary: 'Other' }]]));
+  assert.equal(place.summary, 'A square.');
+  assert.equal(place.translatedFrom, undefined);
+});

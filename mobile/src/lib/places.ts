@@ -27,11 +27,16 @@ export type Place = {
   coordinates: Coordinates;
   distanceMetres: number;
   wikidataId?: string;
+  /** Set when some of the text was machine-translated from this language. */
+  translatedFrom?: LanguageCode;
   sources: { language: LanguageCode; url: string }[];
 };
 
 /** A place's name and one-line description in one language, from Wikidata. */
 export type WikidataText = { label?: string; description?: string };
+
+/** A place's own title and summary, machine-translated into the user's language. */
+export type TranslatedText = { title?: string; summary?: string };
 
 /**
  * Combines articles from several Wikipedia languages into one list of places.
@@ -83,27 +88,45 @@ export function needsTranslation(place: Place, language: LanguageCode): boolean 
 }
 
 /**
- * Swaps in Wikidata's name and description, in the user's language, for places
- * that have no Wikipedia article in that language. Text Wikidata doesn't have
- * stays in its original language, so the card can say which language it's in.
- * `wikidataText` maps Wikidata IDs to their text in `language`.
+ * Puts places that have no Wikipedia article in the user's language into that
+ * language where possible. For the name, a human-written Wikidata label beats
+ * a machine translation. For the summary, a machine translation of the full
+ * article summary beats Wikidata's one-line description, since it says more.
+ * Anything still untranslated stays in its original language, so the card can
+ * say which language it's in.
+ * `wikidataText` maps Wikidata IDs, and `translations` maps place IDs, to text in `language`.
  */
 export function localizePlaces(
   places: Place[],
   language: LanguageCode,
   wikidataText: Map<string, WikidataText>,
+  translations: Map<string, TranslatedText> = new Map(),
 ): Place[] {
   return places.map((place) => {
-    const text = place.wikidataId ? wikidataText.get(place.wikidataId) : undefined;
-    if (!text || !needsTranslation(place, language)) return place;
+    if (!needsTranslation(place, language)) return place;
+    const text = (place.wikidataId && wikidataText.get(place.wikidataId)) || {};
+    const translated = translations.get(place.id) ?? {};
     const localized = { ...place };
-    if (place.titleLanguage !== language && text.label) {
-      localized.title = text.label;
-      localized.titleLanguage = language;
+
+    if (place.titleLanguage !== language) {
+      if (text.label) {
+        localized.title = text.label;
+        localized.titleLanguage = language;
+      } else if (translated.title) {
+        localized.translatedFrom = place.titleLanguage;
+        localized.title = translated.title;
+        localized.titleLanguage = language;
+      }
     }
-    if (place.summaryLanguage !== language && text.description) {
-      localized.summary = capitalize(text.description);
-      localized.summaryLanguage = language;
+    if (place.summary && place.summaryLanguage !== language) {
+      if (translated.summary) {
+        localized.translatedFrom = place.summaryLanguage;
+        localized.summary = translated.summary;
+        localized.summaryLanguage = language;
+      } else if (text.description) {
+        localized.summary = capitalize(text.description);
+        localized.summaryLanguage = language;
+      }
     }
     return localized;
   });
