@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ExternalLink } from '@/components/external-link';
+import { PressableScale } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -66,7 +67,7 @@ export default function ThenAndNowScreen() {
                 keyExtractor={(photo) => photo.pageUrl}
                 contentContainerStyle={styles.strip}
                 renderItem={({ item, index }) => (
-                  <Pressable
+                  <PressableScale
                     onPress={() => setShown(index)}
                     accessibilityRole="button"
                     accessibilityLabel={`Photo from ${item.year}`}
@@ -79,7 +80,7 @@ export default function ThenAndNowScreen() {
                     <ThemedText type="small" themeColor="textSecondary" style={styles.stripYear}>
                       {item.year}
                     </ThemedText>
-                  </Pressable>
+                  </PressableScale>
                 )}
               />
             ) : null}
@@ -95,7 +96,7 @@ export default function ThenAndNowScreen() {
         ) : params.thumbnail ? (
           <View style={styles.panel}>
             <ThemedText type="smallBold">Now</ThemedText>
-            <Image source={params.thumbnail} style={styles.photo} contentFit="cover" />
+            <Image source={params.thumbnail} style={styles.photo} contentFit="cover" transition={200} />
             <ThemedText type="small" themeColor="textSecondary">
               The photo from this place&apos;s Wikipedia article.
             </ThemedText>
@@ -116,7 +117,14 @@ function PhotoPanel({ label, photo }: { label: string; photo: CommonsPhoto }) {
   return (
     <View style={styles.panel}>
       <ThemedText type="smallBold">{label}</ThemedText>
-      <Image source={photo.imageUrl} style={styles.photo} contentFit="cover" accessibilityLabel={photo.title} />
+      {/* Cross-fades when you pick another year from the strip. */}
+      <Image
+        source={photo.imageUrl}
+        style={styles.photo}
+        contentFit="cover"
+        transition={{ duration: 300, effect: 'cross-dissolve' }}
+        accessibilityLabel={photo.title}
+      />
       <ThemedText type="small">{photo.title}</ThemedText>
       <ExternalLink href={photo.pageUrl}>
         <ThemedText type="linkPrimary">

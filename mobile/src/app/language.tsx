@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet } from 'react-native';
+import { FlatList, StyleSheet } from 'react-native';
 
+import { PressableScale } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -26,7 +27,8 @@ export default function LanguageScreen() {
         renderItem={({ item }) => {
           const selected = item.code === language;
           return (
-            <Pressable
+            <PressableScale
+              scaleTo={0.98}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
               onPress={() => {
@@ -41,7 +43,7 @@ export default function LanguageScreen() {
                   </ThemedText>
                 ) : null}
               </ThemedView>
-            </Pressable>
+            </PressableScale>
           );
         }}
       />

@@ -1,8 +1,10 @@
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { ExternalLink } from '@/components/external-link';
+import { PressableScale } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -23,13 +25,22 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
         {place.thumbnailUrl ? (
-          <Image source={place.thumbnailUrl} style={styles.thumbnail} contentFit="cover" />
+          <Image source={place.thumbnailUrl} style={styles.thumbnail} contentFit="cover" transition={200} />
         ) : null}
         <View style={styles.headerText}>
           <ThemedText type="smallBold">{place.title}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {formatDistance(place.distanceMetres)} away{visited ? ' · ✓ Visited' : ''}
-          </ThemedText>
+          <View style={styles.meta}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {formatDistance(place.distanceMetres)} away
+            </ThemedText>
+            {visited ? (
+              <Animated.View entering={ZoomIn.springify()}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {' · ✓ Visited'}
+                </ThemedText>
+              </Animated.View>
+            ) : null}
+          </View>
         </View>
       </View>
       {place.summary ? <ThemedText type="small">{place.summary}</ThemedText> : null}
@@ -56,11 +67,11 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
             },
           }}
           asChild>
-          <Pressable accessibilityRole="button">
+          <PressableScale accessibilityRole="button" scaleTo={0.98}>
             <ThemedView type="backgroundSelected" style={styles.readMore}>
               <ThemedText type="smallBold">Read the full history</ThemedText>
             </ThemedView>
-          </Pressable>
+          </PressableScale>
         </Link>
       ) : null}
       <View style={styles.actions}>
@@ -77,9 +88,9 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
           <ThemedText type="linkPrimary">Then and now</ThemedText>
         </Link>
         {visited ? null : (
-          <Pressable onPress={() => markVisited([place])} accessibilityRole="button">
+          <PressableScale onPress={() => markVisited([place])} accessibilityRole="button">
             <ThemedText type="linkPrimary">I&apos;ve been here</ThemedText>
-          </Pressable>
+          </PressableScale>
         )}
       </View>
       <View style={styles.sources}>
@@ -106,6 +117,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+  },
+  meta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   thumbnail: {
     width: 56,

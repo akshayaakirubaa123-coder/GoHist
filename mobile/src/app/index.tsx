@@ -1,9 +1,11 @@
 import * as Location from 'expo-location';
 import { Link, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, FadeOutDown, LinearTransition, SlideInDown } from 'react-native-reanimated';
 
 import { HistoryMap } from '@/components/history-map';
+import { listItemEntering, PressableScale, SPRING, useThemeColorTransition } from '@/components/motion';
 import { PlaceCard } from '@/components/place-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -170,23 +172,32 @@ export default function NearbyScreen() {
       {state.kind === 'error' && <Message text={`Couldn't load nearby places: ${state.message}`} />}
 
       {viewMode === 'map' && mapState && (
-        <View style={styles.mapArea}>
+        <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(150)} style={styles.mapArea}>
           <HistoryMap state={mapState} onSelect={setSelectedId} />
           {state.kind === 'loading' && (
-            <ThemedView type="backgroundElement" style={styles.mapBadge}>
-              <ActivityIndicator />
-              <ThemedText type="small">Finding history nearby…</ThemedText>
-            </ThemedView>
+            <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.mapBadgeSlot}>
+              <ThemedView type="backgroundElement" style={styles.mapBadge}>
+                <ActivityIndicator />
+                <ThemedText type="small">Finding history nearby…</ThemedText>
+              </ThemedView>
+            </Animated.View>
           )}
           {state.kind === 'ready' && places.length === 0 && (
-            <ThemedView type="backgroundElement" style={styles.mapBadge}>
-              <ThemedText type="small">No documented places within this distance. Try a wider radius.</ThemedText>
-            </ThemedView>
+            <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.mapBadgeSlot}>
+              <ThemedView type="backgroundElement" style={styles.mapBadge}>
+                <ThemedText type="small">No documented places within this distance. Try a wider radius.</ThemedText>
+              </ThemedView>
+            </Animated.View>
           )}
           {selectedPlace && (
-            <View style={styles.cardSheet}>
+            // Keyed by place, so tapping another pin slides the old card away and the new one up.
+            <Animated.View
+              key={selectedPlace.id}
+              entering={SlideInDown.springify().damping(SPRING.damping).stiffness(SPRING.stiffness)}
+              exiting={FadeOutDown.duration(160)}
+              style={styles.cardSheet}>
               <PlaceCard place={selectedPlace} language={language} />
-              <Pressable
+              <PressableScale
                 onPress={() => setSelectedId(undefined)}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
@@ -194,10 +205,10 @@ export default function NearbyScreen() {
                 <ThemedView type="backgroundSelected" style={styles.closeCircle}>
                   <ThemedText type="smallBold">✕</ThemedText>
                 </ThemedView>
-              </Pressable>
-            </View>
+              </PressableScale>
+            </Animated.View>
           )}
-        </View>
+        </Animated.View>
       )}
 
       {state.kind === 'loading' && (viewMode === 'list' || !mapState) && (
@@ -205,10 +216,17 @@ export default function NearbyScreen() {
       )}
 
       {viewMode === 'list' && state.kind === 'ready' && (
-        <FlatList
+        <Animated.FlatList
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(150)}
           data={state.places}
           keyExtractor={(place) => place.id}
-          renderItem={({ item }) => <PlaceCard place={item} language={language} />}
+          itemLayoutAnimation={LinearTransition.springify().damping(SPRING.damping)}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={listItemEntering(index)}>
+              <PlaceCard place={item} language={language} />
+            </Animated.View>
+          )}
           contentContainerStyle={styles.list}
           refreshing={refreshing}
           onRefresh={refresh}
@@ -225,20 +243,23 @@ export default function NearbyScreen() {
 }
 
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const background = useThemeColorTransition(selected, 'backgroundElement', 'backgroundSelected');
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }}>
-      <ThemedView type={selected ? 'backgroundSelected' : 'backgroundElement'} style={styles.chip}>
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }}>
+      <Animated.View style={[styles.chip, background]}>
         <ThemedText type={selected ? 'smallBold' : 'small'}>{label}</ThemedText>
-      </ThemedView>
-    </Pressable>
+      </Animated.View>
+    </PressableScale>
   );
 }
 
 function Message({ text }: { text: string }) {
   return (
-    <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
-      {text}
-    </ThemedText>
+    <Animated.View entering={FadeIn} exiting={FadeOut}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+        {text}
+      </ThemedText>
+    </Animated.View>
   );
 }
 
@@ -266,17 +287,19 @@ const styles = StyleSheet.create({
   mapArea: {
     flex: 1,
   },
-  mapBadge: {
+  mapBadgeSlot: {
     position: 'absolute',
     top: Spacing.three,
     alignSelf: 'center',
+    maxWidth: '80%',
+  },
+  mapBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     borderRadius: Spacing.four,
-    maxWidth: '80%',
   },
   cardSheet: {
     position: 'absolute',
