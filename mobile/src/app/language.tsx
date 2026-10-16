@@ -19,7 +19,8 @@ export default function LanguageScreen() {
         ListHeaderComponent={
           <ThemedText type="small" themeColor="textSecondary" style={styles.intro}>
             Place names and summaries are shown in this language when Wikipedia or Wikidata has
-            them. Otherwise you&apos;ll see the original text, labelled with its language.
+            them. If not, your phone translates them and the card says so. Where that isn&apos;t
+            possible, you&apos;ll see the original text, labelled with its language.
           </ThemedText>
         }
         renderItem={({ item }) => {

@@ -5,6 +5,7 @@ import {
   mergeArticles,
   needsTranslation,
   type Place,
+  type TranslatedText,
   type WikidataText,
   type WikipediaArticle,
 } from './places.ts';
@@ -115,17 +116,46 @@ async function fetchWikidataText(ids: string[], language: LanguageCode): Promise
   return text;
 }
 
+/** Translates text from one language to another, or returns undefined if it can't. */
+export type Translator = (text: string, from: LanguageCode, to: LanguageCode) => Promise<string | undefined>;
+
+/** Translates each place's untranslated title and summary into `language`. */
+async function translatePlaces(
+  places: Place[],
+  language: LanguageCode,
+  translate: Translator,
+): Promise<Map<string, TranslatedText>> {
+  const entries = await Promise.all(
+    places.map(async (place): Promise<[string, TranslatedText]> => {
+      const [title, summary] = await Promise.all([
+        place.titleLanguage !== language ? translate(place.title, place.titleLanguage, language) : undefined,
+        place.summary && place.summaryLanguage && place.summaryLanguage !== language
+          ? translate(place.summary, place.summaryLanguage, language)
+          : undefined,
+      ]);
+      return [place.id, { title, summary }];
+    }),
+  );
+  return new Map(entries);
+}
+
 /**
  * Finds Wikipedia articles about places near `location` and shows them in
  * `language` wherever possible. It searches that language's Wikipedia plus
- * English and Spanish ones; for places that only have an article in another
- * language, it uses the place's name and description from Wikidata.
+ * English and Spanish ones. For places that only have an article in another
+ * language, it uses the place's name and short description from Wikidata.
  * Wikipedia's search radius is capped at 10 km.
+ *
+ * Translating can be slow (the phone may first download a language model), so
+ * the places are returned straight away and, if `translation` is given, its
+ * `translate` runs afterwards and `onTranslated` receives the improved list,
+ * with full summaries translated in place of the short descriptions.
  */
 export async function fetchNearbyPlaces(
   location: Coordinates,
   radiusMetres: number,
   language: LanguageCode,
+  translation?: { translate: Translator; onTranslated: (places: Place[]) => void },
 ): Promise<Place[]> {
   const languages = searchLanguages(language);
   const results = await Promise.allSettled(
@@ -139,14 +169,21 @@ export async function fetchNearbyPlaces(
   }
   const places = mergeArticles(articles, location, languages);
 
-  const ids = places.flatMap((place) =>
-    place.wikidataId && needsTranslation(place, language) ? [place.wikidataId] : [],
-  );
-  if (ids.length === 0) return places;
-  try {
-    return localizePlaces(places, language, await fetchWikidataText(ids, language));
-  } catch {
-    // Without Wikidata the places are still correct, just in their original language.
-    return places;
+  const untranslated = places.filter((place) => needsTranslation(place, language));
+  if (untranslated.length === 0) return places;
+  const ids = untranslated.flatMap((place) => (place.wikidataId ? [place.wikidataId] : []));
+  // Without Wikidata the places are still correct, just in their original language.
+  const wikidataText =
+    ids.length > 0 ? await fetchWikidataText(ids, language).catch(() => new Map<string, WikidataText>()) : new Map();
+
+  if (translation) {
+    translatePlaces(untranslated, language, translation.translate)
+      .then((translations) => {
+        if ([...translations.values()].some((text) => text.title || text.summary)) {
+          translation.onTranslated(localizePlaces(places, language, wikidataText, translations));
+        }
+      })
+      .catch(() => {});
   }
+  return localizePlaces(places, language, wikidataText);
 }

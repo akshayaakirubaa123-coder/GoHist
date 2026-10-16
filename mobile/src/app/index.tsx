@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { Link, Stack } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { PlaceCard } from '@/components/place-card';
@@ -11,6 +11,7 @@ import { useLanguage } from '@/hooks/use-language';
 import { formatDistance, type Coordinates } from '@/lib/geo';
 import { languageName } from '@/lib/languages';
 import type { Place } from '@/lib/places';
+import { translateOnDevice } from '@/lib/translate';
 import { fetchNearbyPlaces } from '@/lib/wikipedia';
 
 const RADIUS_OPTIONS = [500, 2000, 10000];
@@ -26,8 +27,11 @@ export default function NearbyScreen() {
   const [radius, setRadius] = useState(2000);
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
+  // Counts loads, so a slow translation from an earlier load can't overwrite a newer list.
+  const loadCount = useRef(0);
 
   const load = useCallback(async () => {
+    const thisLoad = ++loadCount.current;
     try {
       // Ask for "while using the app" location access. The app never tracks
       // location in the background.
@@ -43,7 +47,13 @@ export default function NearbyScreen() {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
-      setState({ kind: 'ready', places: await fetchNearbyPlaces(here, radius, language) });
+      const places = await fetchNearbyPlaces(here, radius, language, {
+        translate: translateOnDevice,
+        onTranslated: (translated) => {
+          if (thisLoad === loadCount.current) setState({ kind: 'ready', places: translated });
+        },
+      });
+      if (thisLoad === loadCount.current) setState({ kind: 'ready', places });
     } catch (error) {
       setState({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
     }

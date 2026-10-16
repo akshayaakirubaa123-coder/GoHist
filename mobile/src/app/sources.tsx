@@ -29,6 +29,13 @@ export default function SourcesScreen() {
           show a place&apos;s name and short description in your language when Wikipedia has no
           article in it. Wikidata is released into the public domain (CC0).
         </ThemedText>
+
+        <ThemedText type="smallBold">Translations</ThemedText>
+        <ThemedText type="small">
+          When a place has no article in your language, your phone translates the original summary
+          with Google ML Kit, without sending it to a server. Translated cards are labelled, and
+          their source link always opens the original article.
+        </ThemedText>
       </ScrollView>
     </ThemedView>
   );

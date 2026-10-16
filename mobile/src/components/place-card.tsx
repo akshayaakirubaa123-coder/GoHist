@@ -25,6 +25,12 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
         </View>
       </View>
       {place.summary ? <ThemedText type="small">{place.summary}</ThemedText> : null}
+      {place.translatedFrom ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.languageNote}>
+          Machine-translated from {languageName(place.translatedFrom)} on your phone. Check the
+          source for the original.
+        </ThemedText>
+      ) : null}
       {otherLanguage ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.languageNote}>
           Shown in {languageName(otherLanguage)} because {languageName(language)} Wikipedia doesn&apos;t have it yet.
