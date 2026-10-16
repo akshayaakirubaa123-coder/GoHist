@@ -6,11 +6,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { formatDistance } from '@/lib/geo';
-import type { Place } from '@/lib/places';
+import { languageName, type LanguageCode } from '@/lib/languages';
+import { otherShownLanguage, type Place } from '@/lib/places';
 
-const LANGUAGE_NAMES = { en: 'English', es: 'Spanish' } as const;
-
-export function PlaceCard({ place }: { place: Place }) {
+export function PlaceCard({ place, language }: { place: Place; language: LanguageCode }) {
+  const otherLanguage = otherShownLanguage(place, language);
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
@@ -25,10 +25,21 @@ export function PlaceCard({ place }: { place: Place }) {
         </View>
       </View>
       {place.summary ? <ThemedText type="small">{place.summary}</ThemedText> : null}
+      {place.translatedFrom ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.languageNote}>
+          Machine-translated from {languageName(place.translatedFrom)} on your phone. Check the
+          source for the original.
+        </ThemedText>
+      ) : null}
+      {otherLanguage ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.languageNote}>
+          Shown in {languageName(otherLanguage)} because {languageName(language)} Wikipedia doesn&apos;t have it yet.
+        </ThemedText>
+      ) : null}
       <View style={styles.sources}>
         {place.sources.map((source) => (
           <ExternalLink key={source.url} href={source.url}>
-            <ThemedText type="linkPrimary">Source: {LANGUAGE_NAMES[source.language]} Wikipedia</ThemedText>
+            <ThemedText type="linkPrimary">Source: {languageName(source.language)} Wikipedia</ThemedText>
           </ExternalLink>
         ))}
       </View>
@@ -54,6 +65,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: Spacing.two,
+  },
+  languageNote: {
+    fontStyle: 'italic',
   },
   sources: {
     flexDirection: 'row',

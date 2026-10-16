@@ -20,6 +20,16 @@ To try it in a web browser instead, run `npx expo start --web`.
 
 The map is a small web page (`src/lib/map-html.ts`) drawn with [Leaflet](https://leafletjs.com). Phones show it in a WebView and the web version shows it in an iframe, so the map looks and works the same everywhere. Map pictures come from free services that need no API key: OpenStreetMap (street map) and Esri (satellite).
 
+## On-device translation needs a development build
+
+When a place has no article in your chosen language, the app translates it on the phone with Google ML Kit. Expo Go doesn't include that code, so in Expo Go those places stay in their original language (everything else works). To get translation, build your own copy of the app, called a development build, with EAS:
+
+```bash
+npx eas-cli@latest build --profile development --platform android   # or ios
+```
+
+Install the build it gives you, then run `npx expo start` as above and open the project in that app instead of Expo Go.
+
 ## Checks
 
 ```bash
@@ -32,4 +42,4 @@ npm run lint       # code style
 
 - `src/app/` – screens (each file is a screen, thanks to Expo Router)
 - `src/components/` – reusable UI pieces such as the place card and the map
-- `src/lib/` – logic with no UI: distance maths, Wikipedia lookups, merging English and Spanish results
+- `src/lib/` – logic with no UI: distance maths, Wikipedia lookups, merging results from several languages, choosing the display language

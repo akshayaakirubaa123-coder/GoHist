@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
-import { Link } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, Stack } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { HistoryMap } from '@/components/history-map';
@@ -8,9 +8,12 @@ import { PlaceCard } from '@/components/place-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useLanguage } from '@/hooks/use-language';
 import { formatDistance, type Coordinates } from '@/lib/geo';
+import { languageName } from '@/lib/languages';
 import type { MapState } from '@/lib/map-html';
 import type { Place } from '@/lib/places';
+import { translateOnDevice } from '@/lib/translate';
 import { fetchNearbyPlaces } from '@/lib/wikipedia';
 
 const RADIUS_OPTIONS = [500, 2000, 10000];
@@ -24,14 +27,18 @@ type ScreenState =
 type ViewMode = 'map' | 'list';
 
 export default function NearbyScreen() {
+  const { language } = useLanguage();
   const [radius, setRadius] = useState(2000);
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [here, setHere] = useState<Coordinates>();
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [selectedId, setSelectedId] = useState<string>();
+  // Counts loads, so a slow translation from an earlier load can't overwrite a newer list.
+  const loadCount = useRef(0);
 
   const load = useCallback(async () => {
+    const thisLoad = ++loadCount.current;
     try {
       // Ask for "while using the app" location access. The app never tracks
       // location in the background.
@@ -48,11 +55,17 @@ export default function NearbyScreen() {
         longitude: position.coords.longitude,
       };
       setHere(coordinates);
-      setState({ kind: 'ready', places: await fetchNearbyPlaces(coordinates, radius) });
+      const places = await fetchNearbyPlaces(coordinates, radius, language, {
+        translate: translateOnDevice,
+        onTranslated: (translated) => {
+          if (thisLoad === loadCount.current) setState({ kind: 'ready', places: translated });
+        },
+      });
+      if (thisLoad === loadCount.current) setState({ kind: 'ready', places });
     } catch (error) {
       setState({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
     }
-  }, [radius]);
+  }, [radius, language]);
 
   useEffect(() => {
     setState({ kind: 'loading' });
@@ -87,6 +100,15 @@ export default function NearbyScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Link href="/language" accessibilityLabel="Change language">
+              <ThemedText type="linkPrimary">{languageName(language)}</ThemedText>
+            </Link>
+          ),
+        }}
+      />
       <View style={styles.toolbar}>
         {RADIUS_OPTIONS.map((option) => (
           <Chip
@@ -123,7 +145,7 @@ export default function NearbyScreen() {
           )}
           {selectedPlace && (
             <View style={styles.cardSheet}>
-              <PlaceCard place={selectedPlace} />
+              <PlaceCard place={selectedPlace} language={language} />
               <Pressable
                 onPress={() => setSelectedId(undefined)}
                 accessibilityRole="button"
@@ -146,7 +168,7 @@ export default function NearbyScreen() {
         <FlatList
           data={state.places}
           keyExtractor={(place) => place.id}
-          renderItem={({ item }) => <PlaceCard place={item} />}
+          renderItem={({ item }) => <PlaceCard place={item} language={language} />}
           contentContainerStyle={styles.list}
           refreshing={refreshing}
           onRefresh={refresh}

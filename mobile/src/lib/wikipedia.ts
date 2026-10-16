@@ -1,10 +1,22 @@
 import type { Coordinates } from './geo.ts';
-import { mergeArticles, type Place, type WikipediaArticle, type WikipediaLanguage } from './places.ts';
+import { searchLanguages, type LanguageCode } from './languages.ts';
+import {
+  localizePlaces,
+  mergeArticles,
+  needsTranslation,
+  type Place,
+  type TranslatedText,
+  type WikidataText,
+  type WikipediaArticle,
+} from './places.ts';
 
 // Wikimedia asks every app to identify itself so they can contact the developer
 // if the app causes problems. Browsers block the normal User-Agent header, so
 // Wikimedia also accepts this one.
 const API_USER_AGENT = 'GoHist/0.1 (https://github.com/akshayaakirubaa123-coder/GoHist)';
+
+// Wikidata returns at most 50 items per request.
+const WIKIDATA_BATCH_SIZE = 50;
 
 // The extracts module returns at most 20 summaries per request, so we ask for 20 places.
 const RESULTS_PER_LANGUAGE = 20;
@@ -20,7 +32,7 @@ type GeoSearchPage = {
 };
 
 async function fetchArticles(
-  language: WikipediaLanguage,
+  language: LanguageCode,
   location: Coordinates,
   radiusMetres: number,
 ): Promise<WikipediaArticle[]> {
@@ -69,14 +81,85 @@ async function fetchArticles(
   });
 }
 
+type WikidataEntity = {
+  labels?: Record<string, { value: string }>;
+  descriptions?: Record<string, { value: string }>;
+};
+
+/** Looks up each Wikidata item's name and description in `language`. */
+async function fetchWikidataText(ids: string[], language: LanguageCode): Promise<Map<string, WikidataText>> {
+  const text = new Map<string, WikidataText>();
+  for (let start = 0; start < ids.length; start += WIKIDATA_BATCH_SIZE) {
+    const params = new URLSearchParams({
+      action: 'wbgetentities',
+      format: 'json',
+      origin: '*',
+      ids: ids.slice(start, start + WIKIDATA_BATCH_SIZE).join('|'),
+      props: 'labels|descriptions',
+      // Only this language: we never want Wikidata to quietly fall back to another one.
+      languages: language,
+    });
+    const response = await fetch(`https://www.wikidata.org/w/api.php?${params}`, {
+      headers: { 'Api-User-Agent': API_USER_AGENT },
+    });
+    if (!response.ok) {
+      throw new Error(`www.wikidata.org returned ${response.status}`);
+    }
+    const body: { entities?: Record<string, WikidataEntity> } = await response.json();
+    for (const [id, entity] of Object.entries(body.entities ?? {})) {
+      text.set(id, {
+        label: entity.labels?.[language]?.value,
+        description: entity.descriptions?.[language]?.value,
+      });
+    }
+  }
+  return text;
+}
+
+/** Translates text from one language to another, or returns undefined if it can't. */
+export type Translator = (text: string, from: LanguageCode, to: LanguageCode) => Promise<string | undefined>;
+
+/** Translates each place's untranslated title and summary into `language`. */
+async function translatePlaces(
+  places: Place[],
+  language: LanguageCode,
+  translate: Translator,
+): Promise<Map<string, TranslatedText>> {
+  const entries = await Promise.all(
+    places.map(async (place): Promise<[string, TranslatedText]> => {
+      const [title, summary] = await Promise.all([
+        place.titleLanguage !== language ? translate(place.title, place.titleLanguage, language) : undefined,
+        place.summary && place.summaryLanguage && place.summaryLanguage !== language
+          ? translate(place.summary, place.summaryLanguage, language)
+          : undefined,
+      ]);
+      return [place.id, { title, summary }];
+    }),
+  );
+  return new Map(entries);
+}
+
 /**
- * Finds Wikipedia articles about places near `location`, in English and Spanish.
+ * Finds Wikipedia articles about places near `location` and shows them in
+ * `language` wherever possible. It searches that language's Wikipedia plus
+ * English and Spanish ones. For places that only have an article in another
+ * language, it uses the place's name and short description from Wikidata.
  * Wikipedia's search radius is capped at 10 km.
+ *
+ * Translating can be slow (the phone may first download a language model), so
+ * the places are returned straight away and, if `translation` is given, its
+ * `translate` runs afterwards and `onTranslated` receives the improved list,
+ * with full summaries translated in place of the short descriptions.
  */
-export async function fetchNearbyPlaces(location: Coordinates, radiusMetres: number): Promise<Place[]> {
-  const languages: WikipediaLanguage[] = ['en', 'es'];
+export async function fetchNearbyPlaces(
+  location: Coordinates,
+  radiusMetres: number,
+  language: LanguageCode,
+  translation?: { translate: Translator; onTranslated: (places: Place[]) => void },
+): Promise<Place[]> {
+  const languages = searchLanguages(language);
   const results = await Promise.allSettled(
-    languages.map((language) => fetchArticles(language, location, radiusMetres)),
+    languages.map((code) => fetchArticles(code, location, radiusMetres)),
   );
   const articles = results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
   // Only fail if every language failed; one working source is still useful.
@@ -84,5 +167,23 @@ export async function fetchNearbyPlaces(location: Coordinates, radiusMetres: num
     const failure = results.find((result) => result.status === 'rejected');
     if (failure) throw failure.reason;
   }
-  return mergeArticles(articles, location);
+  const places = mergeArticles(articles, location, languages);
+
+  const untranslated = places.filter((place) => needsTranslation(place, language));
+  if (untranslated.length === 0) return places;
+  const ids = untranslated.flatMap((place) => (place.wikidataId ? [place.wikidataId] : []));
+  // Without Wikidata the places are still correct, just in their original language.
+  const wikidataText =
+    ids.length > 0 ? await fetchWikidataText(ids, language).catch(() => new Map<string, WikidataText>()) : new Map();
+
+  if (translation) {
+    translatePlaces(untranslated, language, translation.translate)
+      .then((translations) => {
+        if ([...translations.values()].some((text) => text.title || text.summary)) {
+          translation.onTranslated(localizePlaces(places, language, wikidataText, translations));
+        }
+      })
+      .catch(() => {});
+  }
+  return localizePlaces(places, language, wikidataText);
 }

@@ -1,10 +1,9 @@
 import { distanceInMetres, type Coordinates } from './geo.ts';
-
-export type WikipediaLanguage = 'en' | 'es';
+import type { LanguageCode } from './languages.ts';
 
 /** One Wikipedia article about a place, as returned by the GeoSearch API. */
 export type WikipediaArticle = {
-  language: WikipediaLanguage;
+  language: LanguageCode;
   pageId: number;
   title: string;
   summary?: string;
@@ -19,12 +18,25 @@ export type WikipediaArticle = {
 export type Place = {
   id: string;
   title: string;
+  /** Language the title is written in. */
+  titleLanguage: LanguageCode;
   summary?: string;
+  /** Language the summary is written in. */
+  summaryLanguage?: LanguageCode;
   thumbnailUrl?: string;
   coordinates: Coordinates;
   distanceMetres: number;
-  sources: { language: WikipediaLanguage; url: string }[];
+  wikidataId?: string;
+  /** Set when some of the text was machine-translated from this language. */
+  translatedFrom?: LanguageCode;
+  sources: { language: LanguageCode; url: string }[];
 };
+
+/** A place's name and one-line description in one language, from Wikidata. */
+export type WikidataText = { label?: string; description?: string };
+
+/** A place's own title and summary, machine-translated into the user's language. */
+export type TranslatedText = { title?: string; summary?: string };
 
 /**
  * Combines articles from several Wikipedia languages into one list of places.
@@ -35,9 +47,9 @@ export type Place = {
 export function mergeArticles(
   articles: WikipediaArticle[],
   userLocation: Coordinates,
-  preferredOrder: WikipediaLanguage[] = ['en', 'es'],
+  preferredOrder: LanguageCode[] = ['en', 'es'],
 ): Place[] {
-  const rank = (language: WikipediaLanguage) => preferredOrder.indexOf(language);
+  const rank = (language: LanguageCode) => preferredOrder.indexOf(language);
   const sorted = [...articles].sort((a, b) => rank(a.language) - rank(b.language));
 
   const places = new Map<string, Place>();
@@ -46,20 +58,88 @@ export function mergeArticles(
     const existing = places.get(key);
     if (existing) {
       existing.sources.push({ language: article.language, url: article.url });
-      existing.summary ??= article.summary;
+      if (!existing.summary && article.summary) {
+        existing.summary = article.summary;
+        existing.summaryLanguage = article.language;
+      }
       existing.thumbnailUrl ??= article.thumbnailUrl;
       continue;
     }
     places.set(key, {
       id: key,
       title: article.title,
+      titleLanguage: article.language,
       summary: article.summary,
+      summaryLanguage: article.summary ? article.language : undefined,
       thumbnailUrl: article.thumbnailUrl,
       coordinates: article.coordinates,
       distanceMetres: distanceInMetres(userLocation, article.coordinates),
+      wikidataId: article.wikidataId,
       sources: [{ language: article.language, url: article.url }],
     });
   }
 
   return [...places.values()].sort((a, b) => a.distanceMetres - b.distanceMetres);
+}
+
+/** Places whose title or summary isn't in `language`, so Wikidata may have a better one. */
+export function needsTranslation(place: Place, language: LanguageCode): boolean {
+  return place.titleLanguage !== language || (!!place.summary && place.summaryLanguage !== language);
+}
+
+/**
+ * Puts places that have no Wikipedia article in the user's language into that
+ * language where possible. For the name, a human-written Wikidata label beats
+ * a machine translation. For the summary, a machine translation of the full
+ * article summary beats Wikidata's one-line description, since it says more.
+ * Anything still untranslated stays in its original language, so the card can
+ * say which language it's in.
+ * `wikidataText` maps Wikidata IDs, and `translations` maps place IDs, to text in `language`.
+ */
+export function localizePlaces(
+  places: Place[],
+  language: LanguageCode,
+  wikidataText: Map<string, WikidataText>,
+  translations: Map<string, TranslatedText> = new Map(),
+): Place[] {
+  return places.map((place) => {
+    if (!needsTranslation(place, language)) return place;
+    const text = (place.wikidataId && wikidataText.get(place.wikidataId)) || {};
+    const translated = translations.get(place.id) ?? {};
+    const localized = { ...place };
+
+    if (place.titleLanguage !== language) {
+      if (text.label) {
+        localized.title = text.label;
+        localized.titleLanguage = language;
+      } else if (translated.title) {
+        localized.translatedFrom = place.titleLanguage;
+        localized.title = translated.title;
+        localized.titleLanguage = language;
+      }
+    }
+    if (place.summary && place.summaryLanguage !== language) {
+      if (translated.summary) {
+        localized.translatedFrom = place.summaryLanguage;
+        localized.summary = translated.summary;
+        localized.summaryLanguage = language;
+      } else if (text.description) {
+        localized.summary = capitalize(text.description);
+        localized.summaryLanguage = language;
+      }
+    }
+    return localized;
+  });
+}
+
+/** The first language, other than `language`, that a place's text is shown in. */
+export function otherShownLanguage(place: Place, language: LanguageCode): LanguageCode | undefined {
+  if (place.titleLanguage !== language) return place.titleLanguage;
+  if (place.summary && place.summaryLanguage !== language) return place.summaryLanguage;
+  return undefined;
+}
+
+// Wikidata descriptions start lowercase ("royal palace in Madrid, Spain").
+function capitalize(text: string): string {
+  return text.charAt(0).toLocaleUpperCase() + text.slice(1);
 }
