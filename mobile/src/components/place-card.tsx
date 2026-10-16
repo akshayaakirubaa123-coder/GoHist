@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useVisits } from '@/hooks/use-visits';
+import { articleTitleFromUrl } from '@/lib/article';
 import { formatDistance } from '@/lib/geo';
 import { languageName, type LanguageCode } from '@/lib/languages';
 import { otherShownLanguage, type Place } from '@/lib/places';
@@ -15,6 +16,9 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
   const otherLanguage = otherShownLanguage(place, language);
   const { hasVisited, markVisited } = useVisits();
   const visited = hasVisited(place.id);
+  // The first source is the article in the most preferred language.
+  const article = place.sources[0];
+  const articleTitle = article && articleTitleFromUrl(article.url);
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
@@ -39,6 +43,25 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
         <ThemedText type="small" themeColor="textSecondary" style={styles.languageNote}>
           Shown in {languageName(otherLanguage)} because {languageName(language)} Wikipedia doesn&apos;t have it yet.
         </ThemedText>
+      ) : null}
+      {articleTitle ? (
+        <Link
+          href={{
+            pathname: '/place',
+            params: {
+              name: place.title,
+              articleLanguage: article.language,
+              articleTitle,
+              ...(place.wikidataId ? { wikidataId: place.wikidataId } : {}),
+            },
+          }}
+          asChild>
+          <Pressable accessibilityRole="button">
+            <ThemedView type="backgroundSelected" style={styles.readMore}>
+              <ThemedText type="smallBold">Read the full history</ThemedText>
+            </ThemedView>
+          </Pressable>
+        </Link>
       ) : null}
       <View style={styles.actions}>
         <Link
@@ -96,6 +119,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     columnGap: Spacing.three,
+  },
+  readMore: {
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
   },
   sources: {
     flexDirection: 'row',
