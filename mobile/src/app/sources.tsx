@@ -16,8 +16,10 @@ export default function SourcesScreen() {
 
         <ThemedText type="smallBold">Wikipedia</ThemedText>
         <ThemedText type="small">
-          Place names, summaries and images come from Wikipedia articles in your chosen language,
-          English and Spanish, used under the Creative Commons Attribution-ShareAlike 4.0 licence.
+          Place names, summaries, images and the full article text on each place&apos;s page come
+          from Wikipedia articles in your chosen language, English and Spanish, used under the
+          Creative Commons Attribution-ShareAlike 4.0 licence. The text is shown as its editors
+          wrote it; only reference lists and links are left out.
         </ThemedText>
         <ExternalLink href="https://creativecommons.org/licenses/by-sa/4.0/">
           <ThemedText type="linkPrimary">CC BY-SA 4.0 licence</ThemedText>
@@ -27,7 +29,8 @@ export default function SourcesScreen() {
         <ThemedText type="small">
           Used to recognise when articles in different languages describe the same place, and to
           show a place&apos;s name and short description in your language when Wikipedia has no
-          article in it. Wikidata is released into the public domain (CC0).
+          article in it. A place&apos;s key facts (when it was built, its architect, style, heritage
+          status and key events) come from Wikidata too. Wikidata is released into the public domain (CC0).
         </ThemedText>
 
         <ThemedText type="smallBold">Wikimedia Commons</ThemedText>
