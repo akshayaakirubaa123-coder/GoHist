@@ -156,9 +156,14 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
-        <Link href="/passport" accessibilityLabel="My history passport">
-          <ThemedText type="linkPrimary">See every place in your passport</ThemedText>
-        </Link>
+        <View style={styles.actions}>
+          <Link href="/add-visit">
+            <ThemedText type="linkPrimary">Add a place you&apos;ve been</ThemedText>
+          </Link>
+          <Link href="/passport" accessibilityLabel="My history passport">
+            <ThemedText type="linkPrimary">See your passport</ThemedText>
+          </Link>
+        </View>
       </ScrollView>
     </ThemedView>
   );

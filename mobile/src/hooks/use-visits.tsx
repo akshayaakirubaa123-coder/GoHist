@@ -12,6 +12,8 @@ type VisitsContextValue = {
   visits: Visit[];
   hasVisited: (id: string) => boolean;
   markVisited: (places: Place[]) => void;
+  /** Adds a place you've been to before, picked by hand. Does nothing if it's already logged. */
+  addVisit: (visit: Visit) => void;
   removeVisit: (id: string) => void;
   /** Adds visits saved to your account (from another phone, say). */
   mergeIn: (visits: Visit[]) => void;
@@ -23,6 +25,7 @@ const VisitsContext = createContext<VisitsContextValue>({
   visits: [],
   hasVisited: () => false,
   markVisited: () => {},
+  addVisit: () => {},
   removeVisit: () => {},
   mergeIn: () => {},
   loaded: false,
@@ -61,6 +64,10 @@ export function VisitsProvider({ children }: { children: ReactNode }) {
       hasVisited: (id) => ids.has(id),
       markVisited: (places) => {
         if (loaded) save((current) => sortVisits(addVisits(current, places, new Date())));
+      },
+      addVisit: (visit) => {
+        if (!loaded) return;
+        save((current) => (current.some((v) => v.id === visit.id) ? current : sortVisits([visit, ...current])));
       },
       removeVisit: (id) => save((current) => current.filter((visit) => visit.id !== id)),
       mergeIn: (remote) => {
