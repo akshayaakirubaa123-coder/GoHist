@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { Link } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,7 +7,9 @@ import { PlaceCard } from '@/components/place-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useLanguage } from '@/hooks/use-language';
 import { formatDistance, type Coordinates } from '@/lib/geo';
+import { languageName } from '@/lib/languages';
 import type { Place } from '@/lib/places';
 import { fetchNearbyPlaces } from '@/lib/wikipedia';
 
@@ -20,6 +22,7 @@ type ScreenState =
   | { kind: 'ready'; places: Place[] };
 
 export default function NearbyScreen() {
+  const { language } = useLanguage();
   const [radius, setRadius] = useState(2000);
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
@@ -40,11 +43,11 @@ export default function NearbyScreen() {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
-      setState({ kind: 'ready', places: await fetchNearbyPlaces(here, radius) });
+      setState({ kind: 'ready', places: await fetchNearbyPlaces(here, radius, language) });
     } catch (error) {
       setState({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
     }
-  }, [radius]);
+  }, [radius, language]);
 
   useEffect(() => {
     setState({ kind: 'loading' });
@@ -59,6 +62,15 @@ export default function NearbyScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Link href="/language" accessibilityLabel="Change language">
+              <ThemedText type="linkPrimary">{languageName(language)}</ThemedText>
+            </Link>
+          ),
+        }}
+      />
       <View style={styles.radiusRow}>
         {RADIUS_OPTIONS.map((option) => (
           <Pressable key={option} onPress={() => setRadius(option)} accessibilityRole="button">
@@ -85,7 +97,7 @@ export default function NearbyScreen() {
         <FlatList
           data={state.places}
           keyExtractor={(place) => place.id}
-          renderItem={({ item }) => <PlaceCard place={item} />}
+          renderItem={({ item }) => <PlaceCard place={item} language={language} />}
           contentContainerStyle={styles.list}
           refreshing={refreshing}
           onRefresh={refresh}

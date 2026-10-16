@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { distanceInMetres, formatDistance } from './geo.ts';
-import { mergeArticles, type WikipediaArticle } from './places.ts';
+import { searchLanguages } from './languages.ts';
+import { localizePlaces, mergeArticles, otherShownLanguage, type WikipediaArticle } from './places.ts';
 
 // Puerta del Sol, Madrid
 const madrid = { latitude: 40.4168, longitude: -3.7038 };
@@ -68,4 +69,56 @@ test('places are sorted nearest first', () => {
     places.map((place) => place.title),
     ['Near', 'Far'],
   );
+});
+
+test('English is searched first by default, and a chosen language comes before English', () => {
+  assert.deepEqual(searchLanguages('en'), ['en', 'es']);
+  assert.deepEqual(searchLanguages('fr'), ['fr', 'en', 'es']);
+});
+
+test('a place with only a Spanish article gets its English name and description from Wikidata', () => {
+  const merged = mergeArticles(
+    [article({ language: 'es', title: 'Ermita de San Antonio', wikidataId: 'Q5', summary: 'Una ermita.' })],
+    madrid,
+  );
+  const [place] = localizePlaces(
+    merged,
+    'en',
+    new Map([['Q5', { label: 'Hermitage of San Antonio', description: 'church in Madrid, Spain' }]]),
+  );
+  assert.equal(place.title, 'Hermitage of San Antonio');
+  assert.equal(place.summary, 'Church in Madrid, Spain');
+  assert.equal(otherShownLanguage(place, 'en'), undefined, 'everything is now in English');
+});
+
+test('without Wikidata text, a Spanish-only place keeps its Spanish text and says so', () => {
+  const merged = mergeArticles(
+    [article({ language: 'es', title: 'Fuente', wikidataId: 'Q6', summary: 'Una fuente.' })],
+    madrid,
+  );
+  const [place] = localizePlaces(merged, 'en', new Map([['Q6', {}]]));
+  assert.equal(place.title, 'Fuente');
+  assert.equal(place.summary, 'Una fuente.');
+  assert.equal(otherShownLanguage(place, 'en'), 'es');
+});
+
+test('a Spanish summary borrowed by an English article is flagged, then replaced by Wikidata', () => {
+  const merged = mergeArticles(
+    [
+      article({ language: 'es', title: 'Palacio Real de Madrid', wikidataId: 'Q849', summary: 'Resumen' }),
+      article({ language: 'en', title: 'Royal Palace of Madrid', wikidataId: 'Q849' }),
+    ],
+    madrid,
+  );
+  assert.equal(otherShownLanguage(merged[0], 'en'), 'es');
+  const [place] = localizePlaces(merged, 'en', new Map([['Q849', { description: 'royal residence' }]]));
+  assert.equal(place.title, 'Royal Palace of Madrid');
+  assert.equal(place.summary, 'Royal residence');
+});
+
+test('places already fully in the chosen language are left alone', () => {
+  const merged = mergeArticles([article({ title: 'Plaza Mayor', wikidataId: 'Q7', summary: 'A square.' })], madrid);
+  const [place] = localizePlaces(merged, 'en', new Map([['Q7', { label: 'Other', description: 'other' }]]));
+  assert.equal(place.title, 'Plaza Mayor');
+  assert.equal(place.summary, 'A square.');
 });
