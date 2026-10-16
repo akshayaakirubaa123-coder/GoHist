@@ -5,13 +5,16 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { ExternalLink } from '@/components/external-link';
+import { PressableScale } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useLanguage } from '@/hooks/use-language';
+import { useReadAloud } from '@/hooks/use-read-aloud';
 import { fetchArticle, translateArticle, type Article } from '@/lib/article';
 import { fetchFacts, type Fact } from '@/lib/facts';
 import { languageName } from '@/lib/languages';
+import { firstPartOfSection, trackFromArticle } from '@/lib/read-aloud';
 import { translateOnDevice } from '@/lib/translate';
 
 type Params = {
@@ -69,6 +72,13 @@ export default function PlaceScreen() {
 
   const article = articleState.kind === 'ready' ? articleState.article : undefined;
   const shownLanguage = article && !article.translatedFrom ? article.language : language;
+  const readAloud = useReadAloud();
+  // Starts the audiobook at the beginning, or at the section that was tapped.
+  const listenFrom = (section: number) => {
+    if (!article) return;
+    const track = trackFromArticle(name, article, shownLanguage);
+    readAloud.play(track, firstPartOfSection(track, section));
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -117,6 +127,11 @@ export default function PlaceScreen() {
 
         {article && (
           <Animated.View entering={FadeIn.duration(300)} style={styles.article}>
+            <PressableScale onPress={() => listenFrom(0)} accessibilityRole="button" scaleTo={0.98}>
+              <ThemedView type="backgroundSelected" style={styles.listen}>
+                <ThemedText type="smallBold">▶ Listen to the full history</ThemedText>
+              </ThemedView>
+            </PressableScale>
             {article.translatedFrom ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                 Machine-translated from {languageName(article.translatedFrom)} on your phone. Check the
@@ -132,9 +147,22 @@ export default function PlaceScreen() {
             {article.sections.map((section, index) => (
               <View key={index} style={styles.section}>
                 {section.heading ? (
-                  <ThemedText type={section.level <= 1 ? 'default' : 'smallBold'} style={styles.heading}>
-                    {section.heading}
-                  </ThemedText>
+                  <View style={styles.headingRow}>
+                    <ThemedText
+                      type={section.level <= 1 ? 'default' : 'smallBold'}
+                      style={[styles.heading, styles.headingText]}>
+                      {section.heading}
+                    </ThemedText>
+                    <PressableScale
+                      onPress={() => listenFrom(index)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Listen from ${section.heading}`}
+                      hitSlop={8}>
+                      <ThemedText type="linkPrimary" style={styles.fromHere}>
+                        ▶ From here
+                      </ThemedText>
+                    </PressableScale>
+                  </View>
                 ) : null}
                 {section.paragraphs.map((paragraph, paragraphIndex) => (
                   <ThemedText key={paragraphIndex} type="small" style={styles.paragraph}>
@@ -212,6 +240,22 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: 700,
     marginTop: Spacing.two,
+  },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.three,
+  },
+  headingText: {
+    flex: 1,
+  },
+  fromHere: {
+    marginTop: Spacing.two,
+  },
+  listen: {
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
   },
   paragraph: {
     lineHeight: 22,
