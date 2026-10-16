@@ -13,7 +13,7 @@ import {
 // Wikimedia asks every app to identify itself so they can contact the developer
 // if the app causes problems. Browsers block the normal User-Agent header, so
 // Wikimedia also accepts this one.
-const API_USER_AGENT = 'GoHist/0.1 (https://github.com/akshayaakirubaa123-coder/GoHist)';
+export const API_USER_AGENT = 'GoHist/0.1 (https://github.com/akshayaakirubaa123-coder/GoHist)';
 
 // Wikidata returns at most 50 items per request.
 const WIKIDATA_BATCH_SIZE = 50;
@@ -52,7 +52,7 @@ async function fetchArticles(
     pithumbsize: '240',
     exintro: '1',
     explaintext: '1',
-    exsentences: '2',
+    exsentences: '3',
     exlimit: String(RESULTS_PER_LANGUAGE),
   });
   const response = await fetch(`https://${language}.wikipedia.org/w/api.php?${params}`, {
