@@ -19,7 +19,12 @@ The iOS and Android app, built with [Expo](https://expo.dev) (React Native).
 Each place card also has:
 
 - **Then and now**: old photos of that spot (from 1960 or earlier) next to a recent one, from Wikimedia Commons, each with its author, licence and a link.
+- **▶ Listen**: reads the card's summary aloud.
 - **I've been here**: adds the place to your **Passport**, a log of the historic places you've visited. Places within 100 m of you are added automatically when the app loads.
+
+On a place's full history page, **▶ Listen to the full history** reads the whole article aloud like an audiobook, and **▶ From here** next to any heading starts at that section. A player stays at the bottom of every screen while you browse, with play and pause, back and forward a paragraph, speed (0.75× to 2×) and a female or male voice. Your speed and voice are remembered.
+
+Listening uses the phone's own text-to-speech voices, so it's free, works offline and needs no key. It reads the Wikipedia text exactly as shown, in the language shown. Phones don't label voices as female or male, so the app recognises common built-in voices by name; if there isn't one of the chosen kind for that language, the phone's default voice reads and the player says so. More voices can be downloaded in the phone's settings (iPhone: **Settings > Accessibility > Spoken Content > Voices**; Android: **Settings > Text-to-speech output**). Reading carries on with the screen locked or in another app; on iPhone that relies on the background audio setting in `app.json`, so test it in a development build (see below) rather than Expo Go.
 
 Tap **Profile** (top right) to see your name, how many places and countries you've visited, and a world map that fills in as you travel. Zoomed out it is a plain outline of the world with every country you've visited coloured in. Zoom into a city and the streets fade in, with the ground around each place you've been to coloured, so a city fills up the more of it you explore. Your full passport is linked from there.
 
@@ -64,4 +69,4 @@ npm run lint       # code style
 
 - `src/app/` – screens (each file is a screen, thanks to Expo Router)
 - `src/components/` – reusable UI pieces such as the place card and the map
-- `src/lib/` – logic with no UI: distance maths, Wikipedia lookups, merging results from several languages, choosing the display language
+- `src/lib/` – logic with no UI (including `read-aloud.ts`, which splits text for speech and picks voices): distance maths, Wikipedia lookups, merging results from several languages, choosing the display language

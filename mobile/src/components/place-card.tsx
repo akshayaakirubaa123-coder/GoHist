@@ -8,15 +8,18 @@ import { PressableScale } from '@/components/motion';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useReadAloud } from '@/hooks/use-read-aloud';
 import { useVisits } from '@/hooks/use-visits';
 import { articleTitleFromUrl } from '@/lib/article';
 import { formatDistance } from '@/lib/geo';
 import { languageName, type LanguageCode } from '@/lib/languages';
 import { otherShownLanguage, type Place } from '@/lib/places';
+import { trackFromSummary } from '@/lib/read-aloud';
 
 export function PlaceCard({ place, language }: { place: Place; language: LanguageCode }) {
   const otherLanguage = otherShownLanguage(place, language);
   const { hasVisited, markVisited } = useVisits();
+  const readAloud = useReadAloud();
   const visited = hasVisited(place.id);
   // The first source is the article in the most preferred language.
   const article = place.sources[0];
@@ -75,6 +78,15 @@ export function PlaceCard({ place, language }: { place: Place; language: Languag
         </Link>
       ) : null}
       <View style={styles.actions}>
+        {place.summary ? (
+          <PressableScale
+            onPress={() =>
+              readAloud.play(trackFromSummary(place.title, place.summary!, place.summaryLanguage ?? language))
+            }
+            accessibilityRole="button">
+            <ThemedText type="linkPrimary">▶ Listen</ThemedText>
+          </PressableScale>
+        ) : null}
         <Link
           href={{
             pathname: '/then-and-now',
