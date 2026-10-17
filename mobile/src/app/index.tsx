@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeOut, FadeOutDown, LinearTransition, SlideInDown }
 import { HistoryMap } from '@/components/history-map';
 import { listItemEntering, PressableScale, SPRING, useThemeColorTransition } from '@/components/motion';
 import { PlaceCard } from '@/components/place-card';
+import { SpotSearch } from '@/components/spot-search';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -16,6 +17,7 @@ import { useVisits } from '@/hooks/use-visits';
 import { formatDistance, type Coordinates } from '@/lib/geo';
 import { languageName } from '@/lib/languages';
 import type { MapState } from '@/lib/map-html';
+import type { PlaceSearchResult } from '@/lib/place-search';
 import { savedPlacesNear } from '@/lib/offline';
 import type { Place } from '@/lib/places';
 import { translateOnDevice } from '@/lib/translate';
@@ -39,7 +41,7 @@ type ScreenState =
 
 type ViewMode = 'map' | 'list';
 
-/** Where to look: around your location, or around a spot you picked on the map. */
+/** Where to look: around your location, or around a spot you picked on the map or searched for. */
 type SearchCentre = 'me' | 'spot';
 
 export default function NearbyScreen() {
@@ -52,6 +54,8 @@ export default function NearbyScreen() {
   const [selectedId, setSelectedId] = useState<string>();
   const [searchCentre, setSearchCentre] = useState<SearchCentre>('me');
   const [spot, setSpot] = useState<Coordinates>();
+  // The name of a searched-for spot, shown on the map until the spot is moved by hand.
+  const [spotName, setSpotName] = useState<string>();
   // Counts loads, so a slow translation from an earlier load can't overwrite a newer list.
   const loadCount = useRef(0);
   const { markVisited } = useVisits();
@@ -182,14 +186,28 @@ export default function NearbyScreen() {
   // A tap on the map closes an open card first; otherwise, when picking, it moves the spot there.
   const onMapTap = (point: Coordinates) => {
     if (selectedId) setSelectedId(undefined);
-    else if (picking) setSpot(point);
+    else if (picking) {
+      setSpot(point);
+      setSpotName(undefined);
+    }
+  };
+
+  // Searching for a place moves the spot there. It's a picked spot, so it never counts as a visit.
+  const onSearchChoose = (result: PlaceSearchResult) => {
+    setSelectedId(undefined);
+    setSpot(result.coordinates);
+    setSpotName(result.title);
+    setSearchCentre('spot');
+    setViewMode('map');
   };
 
   const mapHint = !picking
     ? undefined
-    : spot
-      ? 'Tap the map to move your spot'
-      : 'Tap anywhere on the map to explore there';
+    : spot && spotName
+      ? `Exploring around ${spotName}. Tap the map to move your spot`
+      : spot
+        ? 'Tap the map to move your spot'
+      : 'Search above, or tap anywhere on the map to explore there';
 
   return (
     <ThemedView style={styles.container}>
@@ -211,6 +229,7 @@ export default function NearbyScreen() {
         }}
       />
       <View style={styles.toolbar}>
+        <SpotSearch language={language} onChoose={onSearchChoose} />
         <View style={styles.toolbarRow}>
           <Chip label="Near me" selected={!picking} onPress={() => chooseSearchCentre('me')} />
           <Chip label="Pick a spot" selected={picking} onPress={() => chooseSearchCentre('spot')} />
@@ -231,11 +250,11 @@ export default function NearbyScreen() {
       </View>
 
       {state.kind === 'permission-denied' && (
-        <Message text="GoHist needs your location to find history near you. You can allow it in your phone's settings, or tap Pick a spot to explore anywhere on the map." />
+        <Message text="GoHist needs your location to find history near you. You can allow it in your phone's settings, or search for a place or tap Pick a spot to explore anywhere on the map." />
       )}
 
       {state.kind === 'choose-spot' && viewMode === 'list' && (
-        <Message text="Switch to the map and tap a spot to explore around it." />
+        <Message text="Search for a place above, or switch to the map and tap a spot to explore around it." />
       )}
 
       {state.kind === 'ready' && state.offline && (
@@ -349,6 +368,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toolbar: {
+    // Above the map, so search results can drop down over it.
+    zIndex: 10,
     gap: Spacing.two,
     padding: Spacing.three,
   },
