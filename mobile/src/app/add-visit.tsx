@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { PressableScale } from '@/components/motion';
@@ -8,11 +8,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useLanguage } from '@/hooks/use-language';
+import { usePlaceSearch } from '@/hooks/use-place-search';
 import { useTheme } from '@/hooks/use-theme';
 import { useVisits } from '@/hooks/use-visits';
 import {
   dateFrom,
-  searchPlaces,
   stepDate,
   toLocalNoon,
   visitFromSearchResult,
@@ -20,50 +20,17 @@ import {
   type VisitDate,
 } from '@/lib/place-search';
 
-// Wait for a pause in typing before searching.
-const SEARCH_DELAY_MS = 350;
-
 /** Add a place you've been to before: search for it by name, then say when you went. */
 export default function AddVisitScreen() {
   const { language } = useLanguage();
   const { hasVisited, addVisit } = useVisits();
   const theme = useTheme();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<PlaceSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string>();
+  const { results, searching, error, noMatches } = usePlaceSearch(query, language);
   const [chosen, setChosen] = useState<PlaceSearchResult>();
   const today = dateFrom(new Date());
   const [date, setDate] = useState<VisitDate>(today);
 
-  useEffect(() => {
-    const text = query.trim();
-    if (text.length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      searchPlaces(text, language)
-        .then((found) => {
-          if (cancelled) return;
-          setResults(found);
-          setError(undefined);
-        })
-        .catch(() => {
-          if (!cancelled) setError("Couldn't search right now. Check your connection and try again.");
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, SEARCH_DELAY_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query, language]);
 
   const save = () => {
     if (!chosen) return;
@@ -128,7 +95,7 @@ export default function AddVisitScreen() {
             />
             {searching ? <ActivityIndicator /> : null}
             {error ? <ThemedText type="small">{error}</ThemedText> : null}
-            {!searching && !error && query.trim().length >= 2 && results.length === 0 ? (
+            {noMatches ? (
               <ThemedText type="small" themeColor="textSecondary">
                 No places with a location matched &quot;{query.trim()}&quot;.
               </ThemedText>
