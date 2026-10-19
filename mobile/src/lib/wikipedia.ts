@@ -190,8 +190,10 @@ async function translatePlaces(
 
 /**
  * Finds Wikipedia articles about places near `location` and shows them in
- * `language` wherever possible. It searches that language's Wikipedia plus
- * English and Spanish ones. For places that only have an article in another
+ * `language` wherever possible. It searches that language's Wikipedia, the
+ * English one and, if given, the one in `localLanguage` (the language spoken
+ * where the places are, see `areaLanguage`). Articles about the same place in
+ * several languages become one place. For places that only have an article in another
  * language, it uses the place's name and short description from Wikidata.
  * Areas wider than 10 km (Wikipedia's limit), up to 25 km, are searched in
  * several overlapping 10 km pieces.
@@ -205,12 +207,13 @@ export async function fetchNearbyPlaces(
   location: Coordinates,
   radiusMetres: number,
   language: LanguageCode,
+  localLanguage?: LanguageCode,
   translation?: {
     translate: Translator;
     onTranslated: (places: Place[]) => void;
   },
 ): Promise<Place[]> {
-  const languages = searchLanguages(language);
+  const languages = searchLanguages(language, localLanguage);
   const results = await Promise.allSettled(languages.map((code) => fetchArticlesWithin(code, location, radiusMetres)));
   const articles = results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
   // Only fail if every language failed; one working source is still useful.
