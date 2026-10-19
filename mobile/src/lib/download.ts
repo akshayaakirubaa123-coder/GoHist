@@ -52,6 +52,7 @@ export async function downloadArea(
   name: string,
   center: Coordinates,
   language: LanguageCode,
+  localLanguage: LanguageCode | undefined,
   onProgress: (done: number) => void,
 ): Promise<SavedArea> {
   const points = downloadGrid(center, CITY_SPAN_METRES);
@@ -59,7 +60,7 @@ export async function downloadArea(
   let failures = 0;
   for (const [index, point] of points.entries()) {
     try {
-      batches.push(await fetchNearbyPlaces(point, DOWNLOAD_SEARCH_RADIUS_METRES, language));
+      batches.push(await fetchNearbyPlaces(point, DOWNLOAD_SEARCH_RADIUS_METRES, language, localLanguage));
     } catch {
       failures++;
     }

@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { useLanguage } from '@/hooks/use-language';
 import { useSavedAreas } from '@/hooks/use-saved-areas';
 import { useTheme } from '@/hooks/use-theme';
+import { areaLanguage } from '@/lib/area-language';
 import type { Coordinates } from '@/lib/geo';
 import { downloadArea, findCity } from '@/lib/download';
 
@@ -27,7 +28,8 @@ export default function OfflineScreen() {
   const download = async (name: string, center: Coordinates) => {
     setStatus({ kind: 'working', text: `Downloading ${name}…` });
     try {
-      const area = await downloadArea(name, center, language, (done) =>
+      const local = await areaLanguage(center);
+      const area = await downloadArea(name, center, language, local, (done) =>
         setStatus({ kind: 'working', text: `Downloading ${name}… ${Math.round(done * 100)}%` }),
       );
       setStatus({ kind: 'working', text: `Saving photos for ${name}…` });

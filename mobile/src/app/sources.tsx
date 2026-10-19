@@ -17,7 +17,8 @@ export default function SourcesScreen() {
         <ThemedText type="smallBold">Wikipedia</ThemedText>
         <ThemedText type="small">
           Place names, summaries, images and the full article text on each place&apos;s page come
-          from Wikipedia articles in your chosen language, English and Spanish, used under the
+          from Wikipedia articles in your chosen language, English and the local language of the
+          area you&apos;re exploring (French in France, Japanese in Japan), used under the
           Creative Commons Attribution-ShareAlike 4.0 licence. The text is shown as its editors
           wrote it; only reference lists and links are left out.
         </ThemedText>
