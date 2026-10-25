@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { distanceInMetres, formatDistance } from './geo.ts';
-import { searchLanguages } from './languages.ts';
+import { LANGUAGES, languageName, localLanguage, searchLanguages } from './languages.ts';
 import { localizePlaces, mergeArticles, otherShownLanguage, type WikipediaArticle } from './places.ts';
 
 // Puerta del Sol, Madrid
@@ -71,9 +71,32 @@ test('places are sorted nearest first', () => {
   );
 });
 
-test('English is searched first by default, and a chosen language comes before English', () => {
-  assert.deepEqual(searchLanguages('en'), ['en', 'es']);
-  assert.deepEqual(searchLanguages('fr'), ['fr', 'en', 'es']);
+test('the chosen language is searched first, then English, then the local language', () => {
+  assert.deepEqual(searchLanguages('en'), ['en']);
+  assert.deepEqual(searchLanguages('fr'), ['fr', 'en']);
+  assert.deepEqual(searchLanguages('en', 'ja'), ['en', 'ja']);
+  assert.deepEqual(searchLanguages('ta', 'fr'), ['ta', 'en', 'fr']);
+  // No language is searched twice.
+  assert.deepEqual(searchLanguages('fr', 'fr'), ['fr', 'en']);
+});
+
+test('the local language comes from the country, or the region where it differs', () => {
+  assert.equal(localLanguage('FR', 'Île-de-France'), 'fr');
+  assert.equal(localLanguage('jp', 'Tokyo'), 'ja');
+  assert.equal(localLanguage('IN', 'Tamil Nadu'), 'ta');
+  assert.equal(localLanguage('IN', 'Delhi'), 'hi');
+  assert.equal(localLanguage('ES', 'Cataluña'), 'ca');
+  assert.equal(localLanguage('CA', 'QC'), 'fr');
+  assert.equal(localLanguage('CA', 'Ontario'), undefined);
+  assert.equal(localLanguage('GB', 'England'), undefined);
+  assert.equal(localLanguage(undefined, 'Somewhere'), undefined);
+});
+
+test('every language in the picker has a name, and local languages outside it do too', () => {
+  assert.equal(new Set(LANGUAGES.map((language) => language.code)).size, LANGUAGES.length);
+  assert.equal(languageName('ja'), 'Japanese');
+  assert.equal(languageName('ml'), 'Malayalam');
+  assert.equal(languageName('xx'), 'xx');
 });
 
 test('a place with only a Spanish article gets its English name and description from Wikidata', () => {

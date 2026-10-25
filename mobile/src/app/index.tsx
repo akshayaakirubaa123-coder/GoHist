@@ -14,6 +14,7 @@ import { Spacing } from '@/constants/theme';
 import { useLanguage } from '@/hooks/use-language';
 import { useSavedAreas } from '@/hooks/use-saved-areas';
 import { useVisits } from '@/hooks/use-visits';
+import { areaLanguage } from '@/lib/area-language';
 import { formatDistance, type Coordinates } from '@/lib/geo';
 import { languageName } from '@/lib/languages';
 import type { MapState } from '@/lib/map-html';
@@ -97,7 +98,9 @@ export default function NearbyScreen() {
       }
       let places: Place[];
       try {
-        places = await fetchNearbyPlaces(coordinates, radius, language, {
+        // Also search the Wikipedia of the language spoken there, which knows the area best.
+        const local = await areaLanguage(coordinates);
+        places = await fetchNearbyPlaces(coordinates, radius, language, local, {
           translate: translateOnDevice,
           onTranslated: (translated) => {
             if (thisLoad === loadCount.current) setState({ kind: 'ready', places: translated, atMyLocation });
